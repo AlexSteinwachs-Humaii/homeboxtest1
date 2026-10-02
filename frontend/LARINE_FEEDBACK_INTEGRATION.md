@@ -26,7 +26,7 @@ Once provisioned, include the verified script once through Nuxt's shared head wi
 - `data-source`: `HomeBox - Test 1`
 - no domain restriction
 
-Coordinate initialization order with the later association-bootstrap story. This story does not implement Work Item or Statement associations.
+The association bootstrap is now implemented by story 2 at the Go HTML-serving boundary, ahead of every head script. The widget itself remains uninstalled pending the prerequisites above.
 
 ## Verification performed in this attempt
 
@@ -35,3 +35,28 @@ Coordinate initialization order with the later association-bootstrap story. This
 - `cd frontend && pnpm install --frozen-lockfile`: passed, including `nuxt prepare`; existing duplicate-component warnings were emitted.
 - `cd frontend && pnpm exec vitest --run --config ./test/vitest.config.ts lib/passwords/index.test.ts lib/datelib/dateOnly.test.ts`: passed, 2 files / 16 tests. These are baseline tests, not widget verification.
 - No application code changed, so a widget build and browser acceptance walk are not claimed. Widget loading, Cmd/Ctrl+Shift+F activation, and actual feedback submission remain unverified pending the prerequisites above.
+
+## Story 2: independent runtime associations
+
+`backend/app/api/larine_context.go` reads the unprefixed server environment at router creation:
+
+- `LARINE_ACTIVE_WORK_ITEM_ID` → `window.__LARINE_ACTIVE_WORK_ITEM_ID__`
+- `LARINE_STATEMENT_ID` → `window.__LARINE_STATEMENT_ID__`
+
+Set either, both, or neither before starting the Go backend; restart it to change context. The Work Item value must be the **canonical Work Item projection ID** supplied by delivery configuration. HomeBox cannot resolve Larine identities and does not convert native Enhancement IDs, derive context from a Statement, or read legacy Enhancement variables. These IDs are browser-visible deployment-wide context, not per-user HomeBox records.
+
+`staticPageHandler` in `backend/app/api/routes.go` injects a synchronous inline script as the first child of the generated HTML head, for directly served HTML and SPA route fallbacks. Blank/whitespace-only or unset values produce no assignment; with neither present, the HTML is unchanged. Go `json.Marshal` string serialization preserves values while escaping HTML metacharacters (including script termination), quotes, control characters and JS line separators. No Vite placeholders or new widget/token implementation are introduced.
+
+HTML responses use `Cache-Control: no-store`. Nuxt PWA configuration excludes HTML from precaching and removes the cached navigation fallback to prevent stale launch context; offline app-shell navigation is no longer supported. Existing installed service workers need to update before this behavior takes effect. Serving `.output/public` directly (including Nuxt dev/static preview) bypasses Go runtime injection and is not a context-enabled deployment.
+
+Focused Go regression tests cover independent combinations, empty/unset values, hostile serialization, initialization order, direct HTML, SPA fallback and untouched JS assets. Submission/persisted associations are **not yet verified**, because the widget script is absent (see story 1 prerequisites).
+
+### Story 2 verification
+
+- `cd frontend && pnpm run build`: passed; existing duplicate-component, circular-chunk and chunk-size warnings emitted. Generated service worker has no HTML precache entries or navigation fallback.
+- `cd frontend && pnpm exec eslint nuxt.config.ts`: passed.
+- `cd frontend && pnpm exec vitest --run --config ./test/vitest.config.ts lib/passwords/index.test.ts lib/datelib/dateOnly.test.ts`: passed, 2 files / 16 baseline tests (not association tests).
+- `cd backend && go test ./app/api -run 'Test(LarineContext|StaticPageLarineContext)' -count=1`: could not run, `/bin/sh: 1: go: not found` (exit 127).
+- `cd backend && go build ./app/api`: could not run, `/bin/sh: 1: go: not found` (exit 127).
+- Go toolchain download attempts from go.dev and proxy.golang.org returned HTTP 403. `apt-get update && apt-get install -y golang-go` also failed with HTTP 403 for Debian repositories. Go tests/build must be run in a Go 1.26-enabled environment; no backend success is claimed.
+- `git diff --check`: passed.

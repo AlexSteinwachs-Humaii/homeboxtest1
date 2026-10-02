@@ -59,6 +59,10 @@ export default defineNuxtConfig({
 
   pwa: {
     workbox: {
+      // HTML contains runtime Larine deployment context from the Go server.
+      // Never serve an app shell cached with a previous launch's associations.
+      globIgnores: ["**/*.html"],
+      navigateFallback: null,
       navigateFallbackDenylist: [/^\/api/],
       cleanupOutdatedCaches: true,
       runtimeCaching: [
