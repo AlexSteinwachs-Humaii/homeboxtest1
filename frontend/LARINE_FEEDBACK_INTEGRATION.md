@@ -60,3 +60,44 @@ Focused Go regression tests cover independent combinations, empty/unset values, 
 - `cd backend && go build ./app/api`: could not run, `/bin/sh: 1: go: not found` (exit 127).
 - Go toolchain download attempts from go.dev and proxy.golang.org returned HTTP 403. `apt-get update && apt-get install -y golang-go` also failed with HTTP 403 for Debian repositories. Go tests/build must be run in a Go 1.26-enabled environment; no backend success is claimed.
 - `git diff --check`: passed.
+
+## Story 3: regression checks and live validation handoff
+
+**Partial implementation; live acceptance is NOT passed.** The preceding story added only runtime context; the widget remains absent. This story does not guess the token attribute, install a fake widget, or substitute a mock submission for Larine evidence.
+
+### Added checks
+
+- `backend/app/api/larine_context_test.go`: extends empty/whitespace and partially unset environment coverage; verifies all four association combinations through direct HTML and SPA fallback routes, unchanged requested script attributes and bootstrap ordering using an explicitly widget-shaped fixture, no domain filter/legacy bridge/placeholders, untouched headless assets, and adversarial script-closing content including semicolons. Fixture preservation is not proof of the deployed widget attributes or submission associations.
+- `test/e2e/larine-feedback.browser.spec.ts`: opt-in Playwright checks the **real deployed** script's presence, exact requested non-token attributes, successful HTTP response, independent window globals, and DOM bootstrap order. Separately checks Control and Meta shortcuts with a selector obtained from the actual widget UI. Traces/video/screenshots are disabled to avoid recording token-bearing DOM. It does not automate submission against an unknown UI/API contract.
+
+### Required controlled browser walk (still outstanding)
+
+First securely provision the product widget token and authoritative attribute contract and finish story 1. Never supply a privileged server credential, dummy token, or token in test command arguments. Use a Go 1.26-enabled environment; build the frontend and serve it through Go, not Nuxt preview/static hosting. Use designated canonical Work Item projection and Statement test records that the product can associate; restart the Go server for each launch configuration. Use a new browser context each time to avoid stale globals/service workers.
+
+| Launch server environment | Expected submitted associations |
+| --- | --- |
+| Both generic variables unset; repeat with both empty | No Work Item, no Statement |
+| `LARINE_ACTIVE_WORK_ITEM_ID` only | Exactly that canonical Work Item; no Statement |
+| `LARINE_STATEMENT_ID` only | Exactly that Statement; **no Work Item or Enhancement** |
+| Both variables populated | Both supplied records independently |
+
+For each configuration:
+
+1. Open `/` and a representative shared frontend route. Confirm one widget script, requested attributes, successful script response and no console initialization error. Do not capture token attributes, full DOM, HARs, authorization headers or raw network bodies in review artifacts.
+2. Run the opt-in contract check from `frontend` using `E2E_LARINE_VALIDATE=1 E2E_BASE_URL=<Go-served test URL> pnpm exec playwright test --config test/playwright.config.ts larine-feedback.browser.spec.ts --project chromium --retries 0 --reporter line`. Set `E2E_LARINE_WORK_ITEM_ID` and/or `E2E_LARINE_STATEMENT_ID` to the expected test IDs (unset when unavailable). Set `E2E_LARINE_DIALOG_SELECTOR` to an inspected live dialog selector. Without it, shortcut checks are **skipped**, not passed.
+3. Activate Cmd+Shift+F on macOS and Ctrl+Shift+F elsewhere, fill the real widget form, and submit clearly marked feedback such as `Larine integration validation - <case> - <unique run marker>`. Confirm a visible successful submission, not merely an open dialog.
+4. In Larine, find the created feedback by marker. Record its feedback ID and independently verify persisted canonical Work Item and Statement links against the table. If using authoritative submission evidence instead, redact credentials and retain only returned feedback ID and association fields. A script snapshot or intercepted mock request is insufficient. Explicitly check Statement-only and neither have no Work Item/Enhancement association. Clean up test feedback according to test-environment policy.
+
+### Actual story 3 commands/results (2026-10-02)
+
+- Required `git fetch origin queue/larine-feedback-widget-installation-590116 && git merge --no-edit origin/queue/larine-feedback-widget-installation-590116`: passed, `Already up to date.`
+- `cd backend && go test ./app/api -run 'Test(LarineContext|StaticPageLarineContext)' -count=1` and `cd backend && go build ./app/api`: both exit 127, `/bin/sh: 1: go: not found`. New Go tests have not run.
+- `cd frontend && pnpm exec eslint --fix test/e2e/larine-feedback.browser.spec.ts` followed by `pnpm exec eslint test/e2e/larine-feedback.browser.spec.ts --max-warnings 0`: passed. Initial standalone Prettier invocation used defaults inconsistent with ESLint; ESLint fixed those formatting warnings.
+- `cd frontend && pnpm exec vitest --run --config ./test/vitest.config.ts lib/passwords/index.test.ts lib/datelib/dateOnly.test.ts`: passed, 2 files / 16 tests; baseline only, not widget acceptance.
+- `cd frontend && pnpm run build`: passed; existing duplicate-component, sourcemap, circular-chunk and chunk-size warnings.
+- `cd frontend && pnpm exec playwright test --config test/playwright.config.ts larine-feedback.browser.spec.ts --project chromium --list`: discovered 3 checks successfully.
+- Served the generated output diagnostically with `python3 -m http.server 3100 --bind 127.0.0.1 --directory .output/public`. This is **not** a runtime-context deployment. `E2E_LARINE_VALIDATE=1 E2E_BASE_URL=http://127.0.0.1:3100 pnpm exec playwright test --config test/playwright.config.ts larine-feedback.browser.spec.ts --project chromium --retries 0 --reporter line`: 3 launch failures, `browserType.launch: Executable doesn't exist at /tmp/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell`. No checks reached the app. `pnpm exec playwright install chromium` then failed with HTTP 403 from cdn.playwright.dev.
+- `agent-browser --session larine-story3 open https://next.larine.dev/larine-feedback.js` and `snapshot`: browser displayed `403 Forbidden`. `curl -I` independently returned HTTP 403.
+- `agent-browser --session larine-story3 open http://127.0.0.1:3100`, restricted `eval` and `press Control+Shift+f`: diagnostic result `widgetScripts: 0`, both globals absent; no widget appeared. This confirms absence, not successful activation/submission. No feedback was submitted; no persisted association evidence exists for any case.
+
+**Remaining prerequisites:** secure token provisioning and verified widget contract, completed widget inclusion, Go 1.26 toolchain, compatible Playwright browser and access to Larine plus designated test records. Shortcut, successful no-context submission, and all submitted association combinations remain unverified. Do not sign off story 3 from baseline test/build success.
