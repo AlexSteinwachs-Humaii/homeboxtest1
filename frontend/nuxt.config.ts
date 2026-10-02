@@ -61,6 +61,8 @@ export default defineNuxtConfig({
           ? [
               {
                 src: "https://next.larine.dev/larine-feedback.js",
+                // Use the widget server's CORS permission under COEP require-corp.
+                crossorigin: "anonymous",
                 defer: true,
                 "data-token": larineWidgetToken,
                 "data-enabled": "always",

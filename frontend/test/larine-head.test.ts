@@ -23,6 +23,7 @@ describe("Larine shared HTML head", () => {
       { src: "/set-theme.js" },
       {
         src: "https://next.larine.dev/larine-feedback.js",
+        crossorigin: "anonymous",
         defer: true,
         "data-token": "public-token-for-unit-test",
         "data-enabled": "always",

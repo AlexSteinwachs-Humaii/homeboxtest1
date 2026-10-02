@@ -2,7 +2,7 @@
 
 ## Review fix: build-time widget inclusion
 
-The shared head in `nuxt.config.ts` now includes the widget once when `LARINE_WIDGET_TOKEN` is nonempty during the frontend build. The published widget was successfully fetched during review and its supported `data-token` attribute verified. The script uses `defer`, `data-enabled=always`, `data-shortcut=mod+shift+f`, and `data-source=HomeBox - Test 1`, without domain restrictions.
+The shared head in `nuxt.config.ts` now includes the widget once when `LARINE_WIDGET_TOKEN` is nonempty during the frontend build. The published widget was successfully fetched during review and its supported `data-token` attribute verified. The script uses `crossorigin=anonymous`, `defer`, `data-enabled=always`, `data-shortcut=mod+shift+f`, and `data-source=HomeBox - Test 1`, without domain restrictions.
 
 Provision `LARINE_WIDGET_TOKEN` through the approved build configuration channel, then rebuild the frontend, copy `.output/public` into the backend's embedded static directory, rebuild the backend and restart the preview (the component's setup/run commands perform these steps). Setting the variable only when the backend starts does not affect generated HTML. The value is browser-visible; use only the product's public widget token, never a privileged server credential. Do not commit its value.
 
@@ -11,6 +11,12 @@ Unset, empty or whitespace-only values intentionally omit the widget rather than
 Review checks: ESLint passed for the changed configuration and test file; Vitest passed 20 tests across 3 files; the frontend build passed both without a token and with a synthetic, test-only token. Parsing generated `index.html`, `home/index.html`, `200.html` and `404.html` verified exactly one widget and all requested attributes in the configured build. The synthetic build was deleted and the unconfigured build restored; no synthetic token was deployed. These checks do not prove live widget submission.
 
 The sections below are historical implementation/validation notes from the original pass; their blocked-installation status is superseded by the conditional inclusion above.
+
+## COEP compatibility review fix
+
+HomeBox retains `Cross-Origin-Embedder-Policy: require-corp`. The widget response permits CORS with `Access-Control-Allow-Origin: *` but does not provide CORP; the previous classic script tag fetched in no-CORS mode and was blocked. `crossorigin=anonymous` switches only the widget request to CORS mode without cross-origin cookies, using the server's existing permission rather than relaxing HomeBox's security headers.
+
+Verified against the reported preview in a browser: the deployed script lacked `crossorigin`; replacing that script in the diagnostic browser with the same attributes plus `crossorigin=anonymous` produced a successful load event. This was a temporary browser-only check, not a deployment. ESLint and all 20 unit/baseline tests passed. A synthetic-token build verified one widget with `crossorigin=anonymous` in the root, home and fallback HTML; the synthetic output was deleted and the prior output restored. The live browser regression test now requires the attribute. Rebuild/restart the preview with the provisioned build-time token to deploy this fix. Real feedback submission has not been tested.
 
 ## Original pass prerequisite
 
