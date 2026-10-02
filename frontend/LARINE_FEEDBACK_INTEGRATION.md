@@ -1,6 +1,20 @@
-# Larine feedback widget: implementation prerequisite
+# Larine feedback widget: configuration and validation
 
-Status: story 1 is **not implemented**. No widget script, placeholder token, or guessed token attribute has been added.
+## Review fix: build-time widget inclusion
+
+The shared head in `nuxt.config.ts` now includes the widget once when `LARINE_WIDGET_TOKEN` is nonempty during the frontend build. The published widget was successfully fetched during review and its supported `data-token` attribute verified. The script uses `defer`, `data-enabled=always`, `data-shortcut=mod+shift+f`, and `data-source=HomeBox - Test 1`, without domain restrictions.
+
+Provision `LARINE_WIDGET_TOKEN` through the approved build configuration channel, then rebuild the frontend, copy `.output/public` into the backend's embedded static directory, rebuild the backend and restart the preview (the component's setup/run commands perform these steps). Setting the variable only when the backend starts does not affect generated HTML. The value is browser-visible; use only the product's public widget token, never a privileged server credential. Do not commit its value.
+
+Unset, empty or whitespace-only values intentionally omit the widget rather than generating a broken installation. No token was available in the review sandbox, so the current preview still needs token provisioning and rebuilding. Unit tests cover configured and unconfigured shared heads; real widget activation/submission remains unverified.
+
+Review checks: ESLint passed for the changed configuration and test file; Vitest passed 20 tests across 3 files; the frontend build passed both without a token and with a synthetic, test-only token. Parsing generated `index.html`, `home/index.html`, `200.html` and `404.html` verified exactly one widget and all requested attributes in the configured build. The synthetic build was deleted and the unconfigured build restored; no synthetic token was deployed. These checks do not prove live widget submission.
+
+The sections below are historical implementation/validation notes from the original pass; their blocked-installation status is superseded by the conditional inclusion above.
+
+## Original pass prerequisite
+
+Original status: story 1 was **not implemented**. No widget script, placeholder token, or guessed token attribute had been added.
 
 ## Verified frontend integration point
 
