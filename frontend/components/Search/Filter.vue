@@ -1,7 +1,7 @@
 <template>
   <Popover>
     <PopoverTrigger as-child>
-      <Button size="sm" variant="outline" class="group/filter">
+      <Button type="button" size="sm" variant="outline" class="group/filter">
         {{ label }} {{ len }}
         <MdiChevronDown class="transition-transform group-data-[state=open]/filter:rotate-180" />
       </Button>

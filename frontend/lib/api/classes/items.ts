@@ -31,6 +31,8 @@ export type ItemsQuery = {
   fields?: string[];
 };
 
+export type InventoryExportFilters = Pick<ItemsQuery, "q" | "parentIds" | "tags" | "includeArchived">;
+
 export type LocationsQuery = {
   filterChildren: boolean;
 };
@@ -189,6 +191,27 @@ export class ItemsApi extends BaseAPI {
     }
 
     return route("/entities/export");
+  }
+
+  async exportFilteredCSV(filters: InventoryExportFilters, tenant?: string): Promise<Blob> {
+    // Whitelist basic filters: exports must never inherit pagination or advanced Items state.
+    const params = {
+      filtered: true,
+      q: filters.q ?? "",
+      parentIds: filters.parentIds ?? [],
+      tags: filters.tags ?? [],
+      includeArchived: filters.includeArchived ?? false,
+      ...(tenant ? { tenant } : {}),
+    };
+    const result = await this.http.get({
+      url: route("/entities/export", params),
+      // Pin the authorized collection even if this client was created before a switch.
+      headers: { "X-Tenant": tenant ?? "" },
+    });
+    if (result.error || !result.response.headers.get("Content-Type")?.startsWith("text/csv")) {
+      throw new Error(`Inventory export failed (${result.status})`);
+    }
+    return result.response.blob();
   }
 
   // =========================================================================

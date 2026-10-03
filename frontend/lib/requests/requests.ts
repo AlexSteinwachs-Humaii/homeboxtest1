@@ -74,8 +74,8 @@ export class Requests {
     const payload: RequestInit = {
       method,
       headers: {
-        ...rargs.headers,
         ...this.headers,
+        ...rargs.headers,
       } as Record<string, string>,
     };
 

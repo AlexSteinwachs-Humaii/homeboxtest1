@@ -200,9 +200,10 @@ func (s *IOSheet) Read(data io.Reader) error {
 	return nil
 }
 
-// ReadItems writes the sheet to a writer.
+// ReadItems populates export rows and headers. Relationship metadata may be
+// resolved outside the selected rows, but never adds rows or custom columns.
 func (s *IOSheet) ReadItems(ctx context.Context, entities []repo.EntityOut, gid uuid.UUID, repos *repo.AllRepos, hbURL string) error {
-	s.Rows = make([]ExportCSVRow, len(entities))
+	*s = IOSheet{Rows: make([]ExportCSVRow, len(entities))}
 
 	extraHeaders := map[string]struct{}{}
 	entitiesByID := lo.SliceToMap(entities, func(item repo.EntityOut) (uuid.UUID, repo.EntityOut) {
@@ -217,7 +218,19 @@ func (s *IOSheet) ReadItems(ctx context.Context, entities []repo.EntityOut, gid 
 		if item.Parent != nil {
 			locationParentID := item.Parent.ID
 
-			if parent, ok := entitiesByID[item.Parent.ID]; ok && parent.EntityType != nil && !parent.EntityType.IsLocation {
+			parent, ok := entitiesByID[item.Parent.ID]
+			if !ok {
+				// Filtered exports can omit an item's parent. Look it up in the
+				// authorized collection and cache only its metadata, not a row.
+				var err error
+				parent, err = repos.Entities.GetOneByGroup(ctx, gid, item.Parent.ID)
+				if err != nil {
+					return err
+				}
+				entitiesByID[parent.ID] = parent
+			}
+
+			if parent.EntityType != nil && !parent.EntityType.IsLocation {
 				parentImportRef = parent.ImportRef
 				locationParentID = uuid.Nil
 				if parent.Parent != nil {

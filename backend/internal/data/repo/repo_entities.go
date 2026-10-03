@@ -593,12 +593,8 @@ func entityQuerySpanAttrs(gid uuid.UUID, q EntityQuery) []attribute.KeyValue {
 	}
 }
 
-// QueryByGroup returns a list of entities that belong to a specific group based on the provided query.
-func (r *EntityRepository) QueryByGroup(ctx context.Context, gid uuid.UUID, q EntityQuery) (PaginationResult[EntitySummary], error) {
-	ctx, span := entityTracer().Start(ctx, "repo.EntityRepository.QueryByGroup",
-		trace.WithAttributes(entityQuerySpanAttrs(gid, q)...))
-	defer span.End()
-
+// filteredEntityQuery shares item-list matching without ordering or pagination.
+func (r *EntityRepository) filteredEntityQuery(ctx context.Context, gid uuid.UUID, q EntityQuery) *ent.EntityQuery {
 	qb := r.db.Entity.Query().Where(
 		entity.HasGroupWith(group.ID(gid)),
 	)
@@ -730,7 +726,32 @@ func (r *EntityRepository) QueryByGroup(ctx context.Context, gid uuid.UUID, q En
 		qb = qb.Where(entity.And(andPredicates...))
 	}
 
-	span.SetAttributes(attribute.Int("query.predicates.and.count", len(andPredicates)))
+	return qb
+}
+
+// GetFilteredInventory returns full inventory records matching basic filters.
+// Pagination and advanced list options are deliberately ignored.
+func (r *EntityRepository) GetFilteredInventory(ctx context.Context, gid uuid.UUID, q EntityQuery) ([]EntityOut, error) {
+	q = EntityQuery{Search: q.Search, AssetID: q.AssetID, ParentIDs: q.ParentIDs, TagIDs: q.TagIDs, IncludeArchived: q.IncludeArchived}
+	ctx, span := entityTracer().Start(ctx, "repo.EntityRepository.GetFilteredInventory",
+		trace.WithAttributes(entityQuerySpanAttrs(gid, q)...))
+	defer span.End()
+
+	out, err := mapEntitiesOutErr(r.filteredEntityQuery(ctx, gid, q).
+		Order(ent.Asc(entity.FieldName), ent.Asc(entity.FieldID)).
+		WithTag().WithParent().WithEntityType().WithFields().All(ctx))
+	recordSpanError(span, err)
+	span.SetAttributes(attribute.Int("entities.count", len(out)))
+	return out, err
+}
+
+// QueryByGroup returns a list of entities that belong to a specific group based on the provided query.
+func (r *EntityRepository) QueryByGroup(ctx context.Context, gid uuid.UUID, q EntityQuery) (PaginationResult[EntitySummary], error) {
+	ctx, span := entityTracer().Start(ctx, "repo.EntityRepository.QueryByGroup",
+		trace.WithAttributes(entityQuerySpanAttrs(gid, q)...))
+	defer span.End()
+
+	qb := r.filteredEntityQuery(ctx, gid, q)
 
 	countCtx, countSpan := entityTracer().Start(ctx, "repo.EntityRepository.QueryByGroup.count")
 	count, err := qb.Count(countCtx)

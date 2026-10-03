@@ -2,11 +2,13 @@ package reporting
 
 import (
 	"bytes"
+	"context"
 	"reflect"
 	"testing"
 
 	_ "embed"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/repo"
@@ -224,4 +226,40 @@ func Test_determineSeparator(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReadItemsStandardHeadersAndReuse(t *testing.T) {
+	standard := []string{
+		"HB.purchase_date", "HB.warranty_expires", "HB.sold_date",
+		"HB.import_ref", "HB.parent_import_ref", "HB.url", "HB.name",
+		"HB.description", "HB.notes", "HB.purchase_from", "HB.manufacturer",
+		"HB.model_number", "HB.serial_number", "HB.warranty_details",
+		"HB.sold_to", "HB.sold_notes", "HB.location", "HB.tags", "HB.asset_id",
+		"HB.quantity", "HB.purchase_price", "HB.sold_price", "HB.archived",
+		"HB.insured", "HB.lifetime_warranty",
+	}
+	var sheet IOSheet
+	require.NoError(t, sheet.ReadItems(context.Background(), []repo.EntityOut{{
+		EntitySummary: repo.EntitySummary{Name: "Item"}, Fields: []repo.EntityFieldData{
+			{Name: "z", TextValue: "last"}, {Name: "a", TextValue: ""},
+		},
+	}}, uuid.Nil, nil, ""))
+	rows, err := sheet.CSV()
+	require.NoError(t, err)
+	assert.Equal(t, append(append([]string{}, standard...), "HB.field.a", "HB.field.z"), rows[0])
+	assert.Equal(t, []string{"", "last"}, rows[1][len(standard):])
+
+	// Reusing a sheet after CSV has indexed the headers must not retain custom
+	// columns or stale indices, even for an empty selection.
+	require.NoError(t, sheet.ReadItems(context.Background(), nil, uuid.Nil, nil, ""))
+	rows, err = sheet.CSV()
+	require.NoError(t, err)
+	assert.Equal(t, [][]string{standard}, rows)
+	require.NoError(t, sheet.ReadItems(context.Background(), []repo.EntityOut{{
+		EntitySummary: repo.EntitySummary{Name: "Second"}, Fields: []repo.EntityFieldData{{Name: "b", TextValue: "new"}},
+	}}, uuid.Nil, nil, ""))
+	rows, err = sheet.CSV()
+	require.NoError(t, err)
+	assert.Equal(t, append(append([]string{}, standard...), "HB.field.b"), rows[0])
+	assert.Equal(t, "new", rows[1][len(standard)])
 }
