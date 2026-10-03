@@ -1,5 +1,6 @@
 export type DaisyTheme =
   | "homebox"
+  | "xai"
   | "light"
   | "dark"
   | "cupcake"
@@ -39,6 +40,10 @@ export const themes: ThemeOption[] = [
   {
     label: "Homebox",
     value: "homebox",
+  },
+  {
+    label: "xAI",
+    value: "xai",
   },
   {
     label: "Garden",
@@ -155,6 +160,7 @@ export const themes: ThemeOption[] = [
 ];
 
 export const darkThemes: DaisyTheme[] = [
+  "xai",
   "synthwave",
   "retro",
   "cyberpunk",
