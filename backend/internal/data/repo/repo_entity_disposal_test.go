@@ -87,8 +87,16 @@ func TestEntityOffboardingWriteFailureIsAtomic(t *testing.T) {
 		})
 	})
 	r := &EntityRepository{db: client}
-	_, err = r.OffboardByGroup(ctx, tGroup.ID, asset.ID, tUser.ID, EntityOffboarding{Route: "sale"})
-	require.ErrorIs(t, err, failure)
+	certificate, err := tClient.Attachment.Create().SetEntityID(asset.ID).SetType("attachment").SetMimeType("application/pdf").SetPath("uploaded/certificate").Save(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tClient.Attachment.DeleteOneID(certificate.ID).Exec(ctx) }()
+	for _, input := range []EntityOffboarding{
+		{Route: "sale"},
+		{Route: "destruction", Destruction: &DestructionInput{Declared: true, Date: types.DateFromString("2026-10-01"), Method: "Shredded", Evidence: []types.DestructionEvidence{{AttachmentID: certificate.ID, Kind: "certificate"}}}},
+	} {
+		_, err = r.OffboardByGroup(ctx, tGroup.ID, asset.ID, tUser.ID, input)
+		require.ErrorIs(t, err, failure)
+	}
 	after, err := tRepos.Entities.GetOneByGroup(ctx, tGroup.ID, asset.ID)
 	require.NoError(t, err)
 	require.False(t, after.Disposed)
@@ -98,6 +106,9 @@ func TestEntityOffboardingWriteFailureIsAtomic(t *testing.T) {
 func TestEntityOffboardingConcurrentSubmissions(t *testing.T) {
 	ctx := context.Background()
 	asset := useEntities(t, 1)[0]
+	certificate, err := tClient.Attachment.Create().SetEntityID(asset.ID).SetType("attachment").SetMimeType("application/pdf").SetPath("uploaded/certificate").Save(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tClient.Attachment.DeleteOneID(certificate.ID).Exec(ctx) }()
 	start := make(chan struct{})
 	results := make(chan error, 12)
 	var wg sync.WaitGroup
@@ -106,7 +117,11 @@ func TestEntityOffboardingConcurrentSubmissions(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 			<-start
-			_, err := tRepos.Entities.OffboardByGroup(ctx, tGroup.ID, asset.ID, tUser.ID, EntityOffboarding{Route: []string{"sale", "donation", "recycling"}[i%3]})
+			input := EntityOffboarding{Route: []string{"sale", "donation", "recycling", "destruction"}[i%4]}
+			if input.Route == "destruction" {
+				input.Destruction = &DestructionInput{Declared: true, Date: types.DateFromString("2026-10-01"), Method: "Shredded", Evidence: []types.DestructionEvidence{{AttachmentID: certificate.ID, Kind: "certificate"}}}
+			}
+			_, err := tRepos.Entities.OffboardByGroup(ctx, tGroup.ID, asset.ID, tUser.ID, input)
 			results <- err
 		}(i)
 	}

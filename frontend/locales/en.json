@@ -1,4 +1,19 @@
 {
+    "asset_offboarding": {
+        "notice": "This is your recorded declaration, not independent verification or a legally certified electronic signature.",
+        "date": "Destruction date",
+        "method": "Destruction method",
+        "evidence": "Uploaded evidence",
+        "evidence_hint": "Select uploaded photos or destruction certificates. External links cannot be used as retained evidence.",
+        "upload_first": "Upload a photo or PDF/image destruction certificate to this asset first.",
+        "submit": "Submit destruction declaration",
+        "photo": "photo",
+        "certificate": "certificate",
+        "consent_required": "Accept the destruction declaration.",
+        "date_required": "Enter a valid destruction date.",
+        "method_required": "Enter the destruction method.",
+        "evidence_required": "Select at least one uploaded photo or destruction certificate belonging to this asset."
+    },
     "collection": {
         "copy_invite": "Copy Invite Link",
         "create_invite": "Create Invite",

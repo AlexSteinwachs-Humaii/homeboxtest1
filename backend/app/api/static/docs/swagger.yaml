@@ -1090,6 +1090,19 @@ definitions:
       search_engine_name:
         type: string
     type: object
+  repo.DestructionInput:
+    properties:
+      date:
+        type: string
+      declared:
+        type: boolean
+      evidence:
+        items:
+          $ref: '#/definitions/types.DestructionEvidence'
+        type: array
+      method:
+        type: string
+    type: object
   repo.DuplicateOptions:
     properties:
       copyAttachments:
@@ -1170,6 +1183,11 @@ definitions:
     type: object
   repo.EntityOffboarding:
     properties:
+      destruction:
+        allOf:
+        - $ref: '#/definitions/repo.DestructionInput'
+        x-nullable: true
+        x-omitempty: true
       route:
         enum:
         - sale
@@ -2184,8 +2202,33 @@ definitions:
     - TypeNumber
     - TypeBoolean
     - TypeTime
+  types.DestructionAttestation:
+    properties:
+      date:
+        type: string
+      declaration:
+        type: string
+      evidence:
+        items:
+          $ref: '#/definitions/types.DestructionEvidence'
+        type: array
+      method:
+        type: string
+    type: object
+  types.DestructionEvidence:
+    properties:
+      attachmentId:
+        type: string
+      kind:
+        type: string
+    type: object
   types.Disposal:
     properties:
+      destruction:
+        allOf:
+        - $ref: '#/definitions/types.DestructionAttestation'
+        x-nullable: true
+        x-omitempty: true
       route:
         type: string
       submittedAt:

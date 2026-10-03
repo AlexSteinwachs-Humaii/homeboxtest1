@@ -44,6 +44,39 @@ func TestEntityOffboardingHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 		return w, ctrl.HandleEntityOffboard()(w, req)
 	}
+	t.Run("destruction uses authenticated attribution", func(t *testing.T) {
+		asset, err := repos.Entities.Create(ctx, grp.ID, repo.EntityCreate{Name: "destroyed asset", EntityTypeID: et.ID})
+		require.NoError(t, err)
+		certificate, err := db.Attachment.Create().SetEntityID(asset.ID).SetType("attachment").SetMimeType("application/pdf").SetPath("uploaded/certificate").Save(ctx)
+		require.NoError(t, err)
+		valid := `{"route":"destruction","destruction":{"declared":true,"date":"2026-10-01","method":"Shredded","evidence":[{"attachmentId":"` + certificate.ID.String() + `","kind":"certificate"}]}}`
+		for _, body := range []string{
+			strings.Replace(valid, `"declared":true`, `"declared":false`, 1),
+			strings.Replace(valid, `2026-10-01`, `2026-02-30`, 1),
+			strings.Replace(valid, certificate.ID.String(), uuid.NewString(), 1),
+		} {
+			_, err := call(asset.ID, body, grp.ID)
+			require.Error(t, err)
+			active, err := repos.Entities.GetOneByGroup(ctx, grp.ID, asset.ID)
+			require.NoError(t, err)
+			require.False(t, active.Disposed)
+		}
+		spoofed := strings.Replace(valid, `"declared":true`, `"declared":true,"submittedBy":"`+uuid.NewString()+`","submittedAt":"2000-01-01T00:00:00Z","declaration":"spoofed"`, 1)
+		w, err := call(asset.ID, spoofed, grp.ID)
+		if err != nil {
+			w, err = call(asset.ID, valid, grp.ID)
+		}
+		require.NoError(t, err)
+		var record types.Disposal
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &record))
+		require.Equal(t, user.ID, record.SubmittedBy)
+		require.Equal(t, types.DestructionDeclaration, record.Destruction.Declaration)
+		require.Greater(t, record.SubmittedAt.Year(), 2000)
+		stored, err := repos.Entities.GetOneByGroup(ctx, grp.ID, asset.ID)
+		require.NoError(t, err)
+		require.Equal(t, []types.Disposal{record}, stored.DisposalHistory)
+	})
+
 	for _, disposalRoute := range []string{"sale", "donation", "recycling"} {
 		t.Run(disposalRoute, func(t *testing.T) {
 			asset, err := repos.Entities.Create(ctx, grp.ID, repo.EntityCreate{Name: "asset", EntityTypeID: et.ID})

@@ -738,6 +738,13 @@ export interface BarcodeProduct {
   search_engine_name: string;
 }
 
+export interface DestructionInput {
+  date: Date | string;
+  declared: boolean;
+  evidence: TypesDestructionEvidence[];
+  method: string;
+}
+
 export interface DuplicateOptions {
   copyAttachments: boolean;
   copyCustomFields: boolean;
@@ -786,6 +793,7 @@ export interface EntityListResult {
 }
 
 export interface EntityOffboarding {
+  destruction?: DestructionInput | null;
   route: "sale" | "donation" | "recycling" | "destruction";
 }
 
@@ -1335,7 +1343,20 @@ export interface UserRegistration {
   token: string;
 }
 
+export interface TypesDestructionAttestation {
+  date: Date | string;
+  declaration: string;
+  evidence: TypesDestructionEvidence[];
+  method: string;
+}
+
+export interface TypesDestructionEvidence {
+  attachmentId: string;
+  kind: string;
+}
+
 export interface TypesDisposal {
+  destruction?: TypesDestructionAttestation | null;
   route: string;
   submittedAt: string;
   submittedBy: string;

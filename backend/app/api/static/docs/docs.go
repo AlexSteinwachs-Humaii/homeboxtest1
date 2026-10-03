@@ -4826,6 +4826,26 @@ const docTemplate = `{
                 }
             }
         },
+        "repo.DestructionInput": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "declared": {
+                    "type": "boolean"
+                },
+                "evidence": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.DestructionEvidence"
+                    }
+                },
+                "method": {
+                    "type": "string"
+                }
+            }
+        },
         "repo.DuplicateOptions": {
             "type": "object",
             "properties": {
@@ -4942,6 +4962,15 @@ const docTemplate = `{
                 "route"
             ],
             "properties": {
+                "destruction": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/repo.DestructionInput"
+                        }
+                    ],
+                    "x-nullable": true,
+                    "x-omitempty": true
+                },
                 "route": {
                     "type": "string",
                     "enum": [
@@ -6417,9 +6446,49 @@ const docTemplate = `{
                 "TypeTime"
             ]
         },
+        "types.DestructionAttestation": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "declaration": {
+                    "type": "string"
+                },
+                "evidence": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.DestructionEvidence"
+                    }
+                },
+                "method": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.DestructionEvidence": {
+            "type": "object",
+            "properties": {
+                "attachmentId": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                }
+            }
+        },
         "types.Disposal": {
             "type": "object",
             "properties": {
+                "destruction": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/types.DestructionAttestation"
+                        }
+                    ],
+                    "x-nullable": true,
+                    "x-omitempty": true
+                },
                 "route": {
                     "type": "string"
                 },

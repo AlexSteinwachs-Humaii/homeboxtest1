@@ -1,6 +1,8 @@
 import { BaseAPI, route } from "../base";
 import type {
   EntityCreate,
+  EntityOffboarding,
+  TypesDisposal,
   EntityListResult,
   EntityOut,
   EntityPatch,
@@ -132,6 +134,13 @@ export class ItemsApi extends BaseAPI {
 
   async get(id: string) {
     return this.http.get<EntityOut>({ url: route(`/entities/${id}`) });
+  }
+
+  offboard(id: string, input: EntityOffboarding) {
+    return this.http.post<EntityOffboarding, TypesDisposal>({
+      url: route(`/entities/${id}/offboarding`),
+      body: input,
+    });
   }
 
   delete(id: string) {

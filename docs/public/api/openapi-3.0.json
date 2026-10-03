@@ -5067,6 +5067,26 @@
                     }
                 }
             },
+            "repo.DestructionInput": {
+                "type": "object",
+                "properties": {
+                    "date": {
+                        "type": "string"
+                    },
+                    "declared": {
+                        "type": "boolean"
+                    },
+                    "evidence": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/types.DestructionEvidence"
+                        }
+                    },
+                    "method": {
+                        "type": "string"
+                    }
+                }
+            },
             "repo.DuplicateOptions": {
                 "type": "object",
                 "properties": {
@@ -5183,6 +5203,15 @@
                     "route"
                 ],
                 "properties": {
+                    "destruction": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/repo.DestructionInput"
+                            }
+                        ],
+                        "x-omitempty": true,
+                        "nullable": true
+                    },
                     "route": {
                         "type": "string",
                         "enum": [
@@ -6658,9 +6687,49 @@
                     "TypeTime"
                 ]
             },
+            "types.DestructionAttestation": {
+                "type": "object",
+                "properties": {
+                    "date": {
+                        "type": "string"
+                    },
+                    "declaration": {
+                        "type": "string"
+                    },
+                    "evidence": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/types.DestructionEvidence"
+                        }
+                    },
+                    "method": {
+                        "type": "string"
+                    }
+                }
+            },
+            "types.DestructionEvidence": {
+                "type": "object",
+                "properties": {
+                    "attachmentId": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "type": "string"
+                    }
+                }
+            },
             "types.Disposal": {
                 "type": "object",
                 "properties": {
+                    "destruction": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/types.DestructionAttestation"
+                            }
+                        ],
+                        "x-omitempty": true,
+                        "nullable": true
+                    },
                     "route": {
                         "type": "string"
                     },
