@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/attachment"
@@ -20,6 +21,7 @@ import (
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/maintenanceentry"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/predicate"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/tag"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/types"
 )
 
 // EntityUpdate is the builder for updating Entity entities.
@@ -161,6 +163,38 @@ func (_u *EntityUpdate) SetNillableArchived(v *bool) *EntityUpdate {
 	if v != nil {
 		_u.SetArchived(*v)
 	}
+	return _u
+}
+
+// SetDisposed sets the "disposed" field.
+func (_u *EntityUpdate) SetDisposed(v bool) *EntityUpdate {
+	_u.mutation.SetDisposed(v)
+	return _u
+}
+
+// SetNillableDisposed sets the "disposed" field if the given value is not nil.
+func (_u *EntityUpdate) SetNillableDisposed(v *bool) *EntityUpdate {
+	if v != nil {
+		_u.SetDisposed(*v)
+	}
+	return _u
+}
+
+// SetDisposalHistory sets the "disposal_history" field.
+func (_u *EntityUpdate) SetDisposalHistory(v []types.Disposal) *EntityUpdate {
+	_u.mutation.SetDisposalHistory(v)
+	return _u
+}
+
+// AppendDisposalHistory appends value to the "disposal_history" field.
+func (_u *EntityUpdate) AppendDisposalHistory(v []types.Disposal) *EntityUpdate {
+	_u.mutation.AppendDisposalHistory(v)
+	return _u
+}
+
+// ClearDisposalHistory clears the value of the "disposal_history" field.
+func (_u *EntityUpdate) ClearDisposalHistory() *EntityUpdate {
+	_u.mutation.ClearDisposalHistory()
 	return _u
 }
 
@@ -839,6 +873,20 @@ func (_u *EntityUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Archived(); ok {
 		_spec.SetField(entity.FieldArchived, field.TypeBool, value)
 	}
+	if value, ok := _u.mutation.Disposed(); ok {
+		_spec.SetField(entity.FieldDisposed, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.DisposalHistory(); ok {
+		_spec.SetField(entity.FieldDisposalHistory, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedDisposalHistory(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, entity.FieldDisposalHistory, value)
+		})
+	}
+	if _u.mutation.DisposalHistoryCleared() {
+		_spec.ClearField(entity.FieldDisposalHistory, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.AssetID(); ok {
 		_spec.SetField(entity.FieldAssetID, field.TypeInt64, value)
 	}
@@ -1381,6 +1429,38 @@ func (_u *EntityUpdateOne) SetNillableArchived(v *bool) *EntityUpdateOne {
 	if v != nil {
 		_u.SetArchived(*v)
 	}
+	return _u
+}
+
+// SetDisposed sets the "disposed" field.
+func (_u *EntityUpdateOne) SetDisposed(v bool) *EntityUpdateOne {
+	_u.mutation.SetDisposed(v)
+	return _u
+}
+
+// SetNillableDisposed sets the "disposed" field if the given value is not nil.
+func (_u *EntityUpdateOne) SetNillableDisposed(v *bool) *EntityUpdateOne {
+	if v != nil {
+		_u.SetDisposed(*v)
+	}
+	return _u
+}
+
+// SetDisposalHistory sets the "disposal_history" field.
+func (_u *EntityUpdateOne) SetDisposalHistory(v []types.Disposal) *EntityUpdateOne {
+	_u.mutation.SetDisposalHistory(v)
+	return _u
+}
+
+// AppendDisposalHistory appends value to the "disposal_history" field.
+func (_u *EntityUpdateOne) AppendDisposalHistory(v []types.Disposal) *EntityUpdateOne {
+	_u.mutation.AppendDisposalHistory(v)
+	return _u
+}
+
+// ClearDisposalHistory clears the value of the "disposal_history" field.
+func (_u *EntityUpdateOne) ClearDisposalHistory() *EntityUpdateOne {
+	_u.mutation.ClearDisposalHistory()
 	return _u
 }
 
@@ -2088,6 +2168,20 @@ func (_u *EntityUpdateOne) sqlSave(ctx context.Context) (_node *Entity, err erro
 	}
 	if value, ok := _u.mutation.Archived(); ok {
 		_spec.SetField(entity.FieldArchived, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.Disposed(); ok {
+		_spec.SetField(entity.FieldDisposed, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.DisposalHistory(); ok {
+		_spec.SetField(entity.FieldDisposalHistory, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedDisposalHistory(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, entity.FieldDisposalHistory, value)
+		})
+	}
+	if _u.mutation.DisposalHistoryCleared() {
+		_spec.ClearField(entity.FieldDisposalHistory, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.AssetID(); ok {
 		_spec.SetField(entity.FieldAssetID, field.TypeInt64, value)

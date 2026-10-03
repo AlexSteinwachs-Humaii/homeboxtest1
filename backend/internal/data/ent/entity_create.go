@@ -18,6 +18,7 @@ import (
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/group"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/maintenanceentry"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/tag"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/types"
 )
 
 // EntityCreate is the builder for creating a Entity entity.
@@ -142,6 +143,26 @@ func (_c *EntityCreate) SetNillableArchived(v *bool) *EntityCreate {
 	if v != nil {
 		_c.SetArchived(*v)
 	}
+	return _c
+}
+
+// SetDisposed sets the "disposed" field.
+func (_c *EntityCreate) SetDisposed(v bool) *EntityCreate {
+	_c.mutation.SetDisposed(v)
+	return _c
+}
+
+// SetNillableDisposed sets the "disposed" field if the given value is not nil.
+func (_c *EntityCreate) SetNillableDisposed(v *bool) *EntityCreate {
+	if v != nil {
+		_c.SetDisposed(*v)
+	}
+	return _c
+}
+
+// SetDisposalHistory sets the "disposal_history" field.
+func (_c *EntityCreate) SetDisposalHistory(v []types.Disposal) *EntityCreate {
+	_c.mutation.SetDisposalHistory(v)
 	return _c
 }
 
@@ -540,6 +561,10 @@ func (_c *EntityCreate) defaults() {
 		v := entity.DefaultArchived
 		_c.mutation.SetArchived(v)
 	}
+	if _, ok := _c.mutation.Disposed(); !ok {
+		v := entity.DefaultDisposed
+		_c.mutation.SetDisposed(v)
+	}
 	if _, ok := _c.mutation.AssetID(); !ok {
 		v := entity.DefaultAssetID
 		_c.mutation.SetAssetID(v)
@@ -605,6 +630,9 @@ func (_c *EntityCreate) check() error {
 	}
 	if _, ok := _c.mutation.Archived(); !ok {
 		return &ValidationError{Name: "archived", err: errors.New(`ent: missing required field "Entity.archived"`)}
+	}
+	if _, ok := _c.mutation.Disposed(); !ok {
+		return &ValidationError{Name: "disposed", err: errors.New(`ent: missing required field "Entity.disposed"`)}
 	}
 	if _, ok := _c.mutation.AssetID(); !ok {
 		return &ValidationError{Name: "asset_id", err: errors.New(`ent: missing required field "Entity.asset_id"`)}
@@ -722,6 +750,14 @@ func (_c *EntityCreate) createSpec() (*Entity, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Archived(); ok {
 		_spec.SetField(entity.FieldArchived, field.TypeBool, value)
 		_node.Archived = value
+	}
+	if value, ok := _c.mutation.Disposed(); ok {
+		_spec.SetField(entity.FieldDisposed, field.TypeBool, value)
+		_node.Disposed = value
+	}
+	if value, ok := _c.mutation.DisposalHistory(); ok {
+		_spec.SetField(entity.FieldDisposalHistory, field.TypeJSON, value)
+		_node.DisposalHistory = value
 	}
 	if value, ok := _c.mutation.AssetID(); ok {
 		_spec.SetField(entity.FieldAssetID, field.TypeInt64, value)

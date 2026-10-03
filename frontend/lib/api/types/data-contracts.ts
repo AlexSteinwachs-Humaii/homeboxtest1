@@ -190,6 +190,10 @@ export interface EntEntity {
   created_at: string;
   /** Description holds the value of the "description" field. */
   description: string;
+  /** DisposalHistory holds the value of the "disposal_history" field. */
+  disposal_history: TypesDisposal[];
+  /** Disposed holds the value of the "disposed" field. */
+  disposed: boolean;
   /**
    * Edges holds the relations/edges for other nodes in the graph.
    * The values are being populated by the EntityQuery when eager-loading is set.
@@ -781,6 +785,10 @@ export interface EntityListResult {
   totalPrice: number;
 }
 
+export interface EntityOffboarding {
+  route: "sale" | "donation" | "recycling" | "destruction";
+}
+
 export interface EntityOut {
   archived: boolean;
   /** @example "0" */
@@ -790,6 +798,8 @@ export interface EntityOut {
   children: EntitySummary[];
   createdAt: Date | string;
   description: string;
+  disposalHistory: TypesDisposal[];
+  disposed: boolean;
   entityType?: EntityTypeSummary | null;
   fields: EntityFieldData[];
   id: string;
@@ -853,6 +863,8 @@ export interface EntitySummary {
   assetId: string;
   createdAt: Date | string;
   description: string;
+  disposalHistory: TypesDisposal[];
+  disposed: boolean;
   entityType?: EntityTypeSummary | null;
   id: string;
   imageId?: string | null;
@@ -1321,6 +1333,12 @@ export interface UserRegistration {
   name: string;
   password: string;
   token: string;
+}
+
+export interface TypesDisposal {
+  route: string;
+  submittedAt: string;
+  submittedBy: string;
 }
 
 export interface APISummary {

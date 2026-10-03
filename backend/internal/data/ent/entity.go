@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entity"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entitytype"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/group"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/types"
 )
 
 // Entity is the model entity for the Entity schema.
@@ -38,6 +40,10 @@ type Entity struct {
 	Insured bool `json:"insured,omitempty"`
 	// Archived holds the value of the "archived" field.
 	Archived bool `json:"archived,omitempty"`
+	// Disposed holds the value of the "disposed" field.
+	Disposed bool `json:"disposed,omitempty"`
+	// DisposalHistory holds the value of the "disposal_history" field.
+	DisposalHistory []types.Disposal `json:"disposal_history,omitempty"`
 	// AssetID holds the value of the "asset_id" field.
 	AssetID int64 `json:"asset_id,omitempty"`
 	// SyncChildEntityLocations holds the value of the "sync_child_entity_locations" field.
@@ -183,7 +189,9 @@ func (*Entity) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case entity.FieldInsured, entity.FieldArchived, entity.FieldSyncChildEntityLocations, entity.FieldLifetimeWarranty:
+		case entity.FieldDisposalHistory:
+			values[i] = new([]byte)
+		case entity.FieldInsured, entity.FieldArchived, entity.FieldDisposed, entity.FieldSyncChildEntityLocations, entity.FieldLifetimeWarranty:
 			values[i] = new(sql.NullBool)
 		case entity.FieldQuantity, entity.FieldPurchasePrice, entity.FieldSoldPrice:
 			values[i] = new(sql.NullFloat64)
@@ -275,6 +283,20 @@ func (_m *Entity) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field archived", values[i])
 			} else if value.Valid {
 				_m.Archived = value.Bool
+			}
+		case entity.FieldDisposed:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field disposed", values[i])
+			} else if value.Valid {
+				_m.Disposed = value.Bool
+			}
+		case entity.FieldDisposalHistory:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field disposal_history", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.DisposalHistory); err != nil {
+					return fmt.Errorf("unmarshal field disposal_history: %w", err)
+				}
 			}
 		case entity.FieldAssetID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -489,6 +511,12 @@ func (_m *Entity) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("archived=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Archived))
+	builder.WriteString(", ")
+	builder.WriteString("disposed=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Disposed))
+	builder.WriteString(", ")
+	builder.WriteString("disposal_history=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DisposalHistory))
 	builder.WriteString(", ")
 	builder.WriteString("asset_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AssetID))

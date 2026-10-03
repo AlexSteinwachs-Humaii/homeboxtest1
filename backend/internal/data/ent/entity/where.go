@@ -101,6 +101,11 @@ func Archived(v bool) predicate.Entity {
 	return predicate.Entity(sql.FieldEQ(FieldArchived, v))
 }
 
+// Disposed applies equality check predicate on the "disposed" field. It's identical to DisposedEQ.
+func Disposed(v bool) predicate.Entity {
+	return predicate.Entity(sql.FieldEQ(FieldDisposed, v))
+}
+
 // AssetID applies equality check predicate on the "asset_id" field. It's identical to AssetIDEQ.
 func AssetID(v int64) predicate.Entity {
 	return predicate.Entity(sql.FieldEQ(FieldAssetID, v))
@@ -604,6 +609,26 @@ func ArchivedEQ(v bool) predicate.Entity {
 // ArchivedNEQ applies the NEQ predicate on the "archived" field.
 func ArchivedNEQ(v bool) predicate.Entity {
 	return predicate.Entity(sql.FieldNEQ(FieldArchived, v))
+}
+
+// DisposedEQ applies the EQ predicate on the "disposed" field.
+func DisposedEQ(v bool) predicate.Entity {
+	return predicate.Entity(sql.FieldEQ(FieldDisposed, v))
+}
+
+// DisposedNEQ applies the NEQ predicate on the "disposed" field.
+func DisposedNEQ(v bool) predicate.Entity {
+	return predicate.Entity(sql.FieldNEQ(FieldDisposed, v))
+}
+
+// DisposalHistoryIsNil applies the IsNil predicate on the "disposal_history" field.
+func DisposalHistoryIsNil() predicate.Entity {
+	return predicate.Entity(sql.FieldIsNull(FieldDisposalHistory))
+}
+
+// DisposalHistoryNotNil applies the NotNil predicate on the "disposal_history" field.
+func DisposalHistoryNotNil() predicate.Entity {
+	return predicate.Entity(sql.FieldNotNull(FieldDisposalHistory))
 }
 
 // AssetIDEQ applies the EQ predicate on the "asset_id" field.

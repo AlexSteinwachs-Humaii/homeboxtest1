@@ -7,6 +7,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/ent"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/repo"
 )
 
 // TestEntityService_CsvImport_AssetIDIdempotent verifies that re-importing the
@@ -73,4 +75,28 @@ func TestEntityService_CsvImport_AssetIDAutoIncrement(t *testing.T) {
 	require.False(t, a.AssetID.Nil())
 	require.False(t, b.AssetID.Nil())
 	require.NotEqual(t, a.AssetID, b.AssetID, "distinct new items must get distinct asset IDs")
+}
+
+func TestEntityServiceOffboardingAttributionAndIsolation(t *testing.T) {
+	ctx := context.Background()
+	et, err := tRepos.EntityTypes.GetDefault(ctx, tGroup.ID, false)
+	require.NoError(t, err)
+	asset, err := tRepos.Entities.Create(ctx, tGroup.ID, repo.EntityCreate{Name: "offboard service test", EntityTypeID: et.ID})
+	require.NoError(t, err)
+	defer func() { _ = tRepos.Entities.Delete(ctx, asset.ID) }()
+	auth := NewContext(SetTenantCtx(SetUserCtx(ctx, &tUser, ""), tGroup.ID))
+	// Changing the selected collection must not permit access to this asset.
+	foreign := auth
+	foreign.GID = uuid.New()
+	_, err = tSvc.Entities.Offboard(foreign, asset.ID, repo.EntityOffboarding{Route: "sale"})
+	require.True(t, ent.IsNotFound(err))
+	_, err = tSvc.Entities.Offboard(Context{Context: ctx, GID: tGroup.ID}, asset.ID, repo.EntityOffboarding{Route: "sale"})
+	require.ErrorIs(t, err, repo.ErrInvalidDisposal)
+	record, err := tSvc.Entities.Offboard(auth, asset.ID, repo.EntityOffboarding{Route: "donation"})
+	require.NoError(t, err)
+	require.Equal(t, tUser.ID, record.SubmittedBy)
+	out, err := tRepos.Entities.GetOneByGroup(ctx, tGroup.ID, asset.ID)
+	require.NoError(t, err)
+	require.True(t, out.Disposed)
+	require.Equal(t, record, out.DisposalHistory[0])
 }

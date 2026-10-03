@@ -11,6 +11,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/sysadminsmedia/homebox/backend/internal/core/services/reporting"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/repo"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -630,4 +631,10 @@ func (svc *EntityService) ExportBillOfMaterialsCSV(ctx context.Context, gid uuid
 	}
 	encodeSpan.SetAttributes(attribute.Int("bytes.size", len(out)))
 	return out, nil
+}
+
+// Offboard derives ownership and attribution exclusively from the authenticated
+// context, never from request-supplied identity or submission metadata.
+func (svc *EntityService) Offboard(ctx Context, id uuid.UUID, input repo.EntityOffboarding) (types.Disposal, error) {
+	return svc.repo.Entities.OffboardByGroup(ctx, ctx.GID, id, ctx.UID, input)
 }

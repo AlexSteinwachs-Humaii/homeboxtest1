@@ -33,6 +33,10 @@ const (
 	FieldInsured = "insured"
 	// FieldArchived holds the string denoting the archived field in the database.
 	FieldArchived = "archived"
+	// FieldDisposed holds the string denoting the disposed field in the database.
+	FieldDisposed = "disposed"
+	// FieldDisposalHistory holds the string denoting the disposal_history field in the database.
+	FieldDisposalHistory = "disposal_history"
 	// FieldAssetID holds the string denoting the asset_id field in the database.
 	FieldAssetID = "asset_id"
 	// FieldSyncChildEntityLocations holds the string denoting the sync_child_entity_locations field in the database.
@@ -143,6 +147,8 @@ var Columns = []string{
 	FieldQuantity,
 	FieldInsured,
 	FieldArchived,
+	FieldDisposed,
+	FieldDisposalHistory,
 	FieldAssetID,
 	FieldSyncChildEntityLocations,
 	FieldSerialNumber,
@@ -210,6 +216,8 @@ var (
 	DefaultInsured bool
 	// DefaultArchived holds the default value on creation for the "archived" field.
 	DefaultArchived bool
+	// DefaultDisposed holds the default value on creation for the "disposed" field.
+	DefaultDisposed bool
 	// DefaultAssetID holds the default value on creation for the "asset_id" field.
 	DefaultAssetID int64
 	// DefaultSyncChildEntityLocations holds the default value on creation for the "sync_child_entity_locations" field.
@@ -285,6 +293,11 @@ func ByInsured(opts ...sql.OrderTermOption) OrderOption {
 // ByArchived orders the results by the archived field.
 func ByArchived(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldArchived, opts...).ToFunc()
+}
+
+// ByDisposed orders the results by the disposed field.
+func ByDisposed(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDisposed, opts...).ToFunc()
 }
 
 // ByAssetID orders the results by the asset_id field.

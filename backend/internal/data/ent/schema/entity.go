@@ -7,6 +7,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/schema/mixins"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/types"
 )
 
 // Entity holds the schema definition for the Entity entity.
@@ -48,6 +49,9 @@ func (Entity) Fields() []ent.Field {
 			Default(false),
 		field.Bool("archived").
 			Default(false),
+		// Lifecycle is intentionally independent of archived and sold metadata.
+		field.Bool("disposed").Default(false),
+		field.JSON("disposal_history", []types.Disposal{}).Optional(),
 		field.Int64("asset_id").
 			Default(0),
 		field.Bool("sync_child_entity_locations").

@@ -31,6 +31,7 @@ import (
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/templatefield"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/user"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/usergroup"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/types"
 )
 
 const (
@@ -2624,6 +2625,9 @@ type EntityMutation struct {
 	addquantity                 *float64
 	insured                     *bool
 	archived                    *bool
+	disposed                    *bool
+	disposal_history            *[]types.Disposal
+	appenddisposal_history      []types.Disposal
 	asset_id                    *int64
 	addasset_id                 *int64
 	sync_child_entity_locations *bool
@@ -3154,6 +3158,107 @@ func (m *EntityMutation) OldArchived(ctx context.Context) (v bool, err error) {
 // ResetArchived resets all changes to the "archived" field.
 func (m *EntityMutation) ResetArchived() {
 	m.archived = nil
+}
+
+// SetDisposed sets the "disposed" field.
+func (m *EntityMutation) SetDisposed(b bool) {
+	m.disposed = &b
+}
+
+// Disposed returns the value of the "disposed" field in the mutation.
+func (m *EntityMutation) Disposed() (r bool, exists bool) {
+	v := m.disposed
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisposed returns the old "disposed" field's value of the Entity entity.
+// If the Entity object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EntityMutation) OldDisposed(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisposed is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisposed requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisposed: %w", err)
+	}
+	return oldValue.Disposed, nil
+}
+
+// ResetDisposed resets all changes to the "disposed" field.
+func (m *EntityMutation) ResetDisposed() {
+	m.disposed = nil
+}
+
+// SetDisposalHistory sets the "disposal_history" field.
+func (m *EntityMutation) SetDisposalHistory(t []types.Disposal) {
+	m.disposal_history = &t
+	m.appenddisposal_history = nil
+}
+
+// DisposalHistory returns the value of the "disposal_history" field in the mutation.
+func (m *EntityMutation) DisposalHistory() (r []types.Disposal, exists bool) {
+	v := m.disposal_history
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisposalHistory returns the old "disposal_history" field's value of the Entity entity.
+// If the Entity object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EntityMutation) OldDisposalHistory(ctx context.Context) (v []types.Disposal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisposalHistory is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisposalHistory requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisposalHistory: %w", err)
+	}
+	return oldValue.DisposalHistory, nil
+}
+
+// AppendDisposalHistory adds t to the "disposal_history" field.
+func (m *EntityMutation) AppendDisposalHistory(t []types.Disposal) {
+	m.appenddisposal_history = append(m.appenddisposal_history, t...)
+}
+
+// AppendedDisposalHistory returns the list of values that were appended to the "disposal_history" field in this mutation.
+func (m *EntityMutation) AppendedDisposalHistory() ([]types.Disposal, bool) {
+	if len(m.appenddisposal_history) == 0 {
+		return nil, false
+	}
+	return m.appenddisposal_history, true
+}
+
+// ClearDisposalHistory clears the value of the "disposal_history" field.
+func (m *EntityMutation) ClearDisposalHistory() {
+	m.disposal_history = nil
+	m.appenddisposal_history = nil
+	m.clearedFields[entity.FieldDisposalHistory] = struct{}{}
+}
+
+// DisposalHistoryCleared returns if the "disposal_history" field was cleared in this mutation.
+func (m *EntityMutation) DisposalHistoryCleared() bool {
+	_, ok := m.clearedFields[entity.FieldDisposalHistory]
+	return ok
+}
+
+// ResetDisposalHistory resets all changes to the "disposal_history" field.
+func (m *EntityMutation) ResetDisposalHistory() {
+	m.disposal_history = nil
+	m.appenddisposal_history = nil
+	delete(m.clearedFields, entity.FieldDisposalHistory)
 }
 
 // SetAssetID sets the "asset_id" field.
@@ -4307,7 +4412,7 @@ func (m *EntityMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EntityMutation) Fields() []string {
-	fields := make([]string, 0, 24)
+	fields := make([]string, 0, 26)
 	if m.created_at != nil {
 		fields = append(fields, entity.FieldCreatedAt)
 	}
@@ -4334,6 +4439,12 @@ func (m *EntityMutation) Fields() []string {
 	}
 	if m.archived != nil {
 		fields = append(fields, entity.FieldArchived)
+	}
+	if m.disposed != nil {
+		fields = append(fields, entity.FieldDisposed)
+	}
+	if m.disposal_history != nil {
+		fields = append(fields, entity.FieldDisposalHistory)
 	}
 	if m.asset_id != nil {
 		fields = append(fields, entity.FieldAssetID)
@@ -4406,6 +4517,10 @@ func (m *EntityMutation) Field(name string) (ent.Value, bool) {
 		return m.Insured()
 	case entity.FieldArchived:
 		return m.Archived()
+	case entity.FieldDisposed:
+		return m.Disposed()
+	case entity.FieldDisposalHistory:
+		return m.DisposalHistory()
 	case entity.FieldAssetID:
 		return m.AssetID()
 	case entity.FieldSyncChildEntityLocations:
@@ -4463,6 +4578,10 @@ func (m *EntityMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldInsured(ctx)
 	case entity.FieldArchived:
 		return m.OldArchived(ctx)
+	case entity.FieldDisposed:
+		return m.OldDisposed(ctx)
+	case entity.FieldDisposalHistory:
+		return m.OldDisposalHistory(ctx)
 	case entity.FieldAssetID:
 		return m.OldAssetID(ctx)
 	case entity.FieldSyncChildEntityLocations:
@@ -4564,6 +4683,20 @@ func (m *EntityMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetArchived(v)
+		return nil
+	case entity.FieldDisposed:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisposed(v)
+		return nil
+	case entity.FieldDisposalHistory:
+		v, ok := value.([]types.Disposal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisposalHistory(v)
 		return nil
 	case entity.FieldAssetID:
 		v, ok := value.(int64)
@@ -4760,6 +4893,9 @@ func (m *EntityMutation) ClearedFields() []string {
 	if m.FieldCleared(entity.FieldNotes) {
 		fields = append(fields, entity.FieldNotes)
 	}
+	if m.FieldCleared(entity.FieldDisposalHistory) {
+		fields = append(fields, entity.FieldDisposalHistory)
+	}
 	if m.FieldCleared(entity.FieldSerialNumber) {
 		fields = append(fields, entity.FieldSerialNumber)
 	}
@@ -4812,6 +4948,9 @@ func (m *EntityMutation) ClearField(name string) error {
 		return nil
 	case entity.FieldNotes:
 		m.ClearNotes()
+		return nil
+	case entity.FieldDisposalHistory:
+		m.ClearDisposalHistory()
 		return nil
 	case entity.FieldSerialNumber:
 		m.ClearSerialNumber()
@@ -4877,6 +5016,12 @@ func (m *EntityMutation) ResetField(name string) error {
 		return nil
 	case entity.FieldArchived:
 		m.ResetArchived()
+		return nil
+	case entity.FieldDisposed:
+		m.ResetDisposed()
+		return nil
+	case entity.FieldDisposalHistory:
+		m.ResetDisposalHistory()
 		return nil
 	case entity.FieldAssetID:
 		m.ResetAssetID()

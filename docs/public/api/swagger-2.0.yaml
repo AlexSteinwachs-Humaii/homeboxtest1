@@ -199,6 +199,14 @@ definitions:
       description:
         description: Description holds the value of the "description" field.
         type: string
+      disposal_history:
+        description: DisposalHistory holds the value of the "disposal_history" field.
+        items:
+          $ref: '#/definitions/types.Disposal'
+        type: array
+      disposed:
+        description: Disposed holds the value of the "disposed" field.
+        type: boolean
       edges:
         allOf:
         - $ref: '#/definitions/ent.EntityEdges'
@@ -1160,6 +1168,18 @@ definitions:
       totalPrice:
         type: number
     type: object
+  repo.EntityOffboarding:
+    properties:
+      route:
+        enum:
+        - sale
+        - donation
+        - recycling
+        - destruction
+        type: string
+    required:
+    - route
+    type: object
   repo.EntityOut:
     properties:
       archived:
@@ -1181,6 +1201,12 @@ definitions:
         type: string
       description:
         type: string
+      disposalHistory:
+        items:
+          $ref: '#/definitions/types.Disposal'
+        type: array
+      disposed:
+        type: boolean
       entityType:
         allOf:
         - $ref: '#/definitions/repo.EntityTypeSummary'
@@ -1319,6 +1345,12 @@ definitions:
         type: string
       description:
         type: string
+      disposalHistory:
+        items:
+          $ref: '#/definitions/types.Disposal'
+        type: array
+      disposed:
+        type: boolean
       entityType:
         allOf:
         - $ref: '#/definitions/repo.EntityTypeSummary'
@@ -2152,6 +2184,15 @@ definitions:
     - TypeNumber
     - TypeBoolean
     - TypeTime
+  types.Disposal:
+    properties:
+      route:
+        type: string
+      submittedAt:
+        type: string
+      submittedBy:
+        type: string
+    type: object
   usergroup.Role:
     enum:
     - user
@@ -2885,6 +2926,38 @@ paths:
       summary: Create Maintenance Entry
       tags:
       - Item Maintenance
+  /v1/entities/{id}/offboarding:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Entity ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Disposal route
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/repo.EntityOffboarding'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.Disposal'
+        "400":
+          description: Bad Request
+        "409":
+          description: Conflict
+      security:
+      - Bearer: []
+      summary: Record asset offboarding (destruction requires attestation)
+      tags:
+      - Entities
   /v1/entities/{id}/path:
     get:
       parameters:

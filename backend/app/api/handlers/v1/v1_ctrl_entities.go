@@ -18,7 +18,9 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
 	"github.com/sysadminsmedia/homebox/backend/internal/core/services"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/ent"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/repo"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/types"
 	"github.com/sysadminsmedia/homebox/backend/internal/sys/validate"
 	"github.com/sysadminsmedia/homebox/backend/internal/web/adapters"
 	"go.opentelemetry.io/otel"
@@ -582,4 +584,33 @@ func (ctrl *V1Controller) HandleEntitiesExport() errchain.HandlerFunc {
 		}
 		return nil
 	}
+}
+
+// HandleEntityOffboard godoc
+//
+// @Summary Record asset offboarding (destruction requires attestation)
+// @Tags Entities
+// @Accept json
+// @Produce json
+// @Param id path string true "Entity ID"
+// @Param payload body repo.EntityOffboarding true "Disposal route"
+// @Success 200 {object} types.Disposal
+// @Failure 400
+// @Failure 409
+// @Router /v1/entities/{id}/offboarding [POST]
+// @Security Bearer
+func (ctrl *V1Controller) HandleEntityOffboard() errchain.HandlerFunc {
+	fn := func(r *http.Request, id uuid.UUID, body repo.EntityOffboarding) (types.Disposal, error) {
+		out, err := ctrl.svc.Entities.Offboard(services.NewContext(r.Context()), id, body)
+		switch {
+		case errors.Is(err, repo.ErrAlreadyDisposed):
+			return out, validate.NewRequestError(err, http.StatusConflict)
+		case errors.Is(err, repo.ErrInvalidDisposal), errors.Is(err, repo.ErrDestructionAttestationRequired):
+			return out, validate.NewRequestError(err, http.StatusBadRequest)
+		case ent.IsNotFound(err):
+			return out, validate.NewRequestError(err, http.StatusNotFound)
+		}
+		return out, err
+	}
+	return adapters.ActionID("id", fn, http.StatusOK)
 }

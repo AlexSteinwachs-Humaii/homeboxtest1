@@ -150,16 +150,18 @@ type (
 	}
 
 	EntitySummary struct {
-		ImportRef   string    `json:"-"`
-		ID          uuid.UUID `json:"id"`
-		AssetID     AssetID   `json:"assetId,string"`
-		Name        string    `json:"name"`
-		Description string    `json:"description"`
-		Quantity    float64   `json:"quantity"`
-		Insured     bool      `json:"insured"`
-		Archived    bool      `json:"archived"`
-		CreatedAt   time.Time `json:"createdAt"`
-		UpdatedAt   time.Time `json:"updatedAt"`
+		ImportRef       string           `json:"-"`
+		ID              uuid.UUID        `json:"id"`
+		AssetID         AssetID          `json:"assetId,string"`
+		Name            string           `json:"name"`
+		Description     string           `json:"description"`
+		Quantity        float64          `json:"quantity"`
+		Insured         bool             `json:"insured"`
+		Archived        bool             `json:"archived"`
+		Disposed        bool             `json:"disposed"`
+		DisposalHistory []types.Disposal `json:"disposalHistory"`
+		CreatedAt       time.Time        `json:"createdAt"`
+		UpdatedAt       time.Time        `json:"updatedAt"`
 
 		PurchasePrice float64 `json:"purchasePrice"`
 
@@ -258,16 +260,18 @@ func mapEntitySummary(e *ent.Entity) EntitySummary {
 	}
 
 	return EntitySummary{
-		ID:            e.ID,
-		AssetID:       AssetID(e.AssetID),
-		Name:          e.Name,
-		Description:   e.Description,
-		ImportRef:     e.ImportRef,
-		Quantity:      e.Quantity,
-		CreatedAt:     e.CreatedAt,
-		UpdatedAt:     e.UpdatedAt,
-		Archived:      e.Archived,
-		PurchasePrice: e.PurchasePrice,
+		ID:              e.ID,
+		AssetID:         AssetID(e.AssetID),
+		Name:            e.Name,
+		Description:     e.Description,
+		ImportRef:       e.ImportRef,
+		Quantity:        e.Quantity,
+		CreatedAt:       e.CreatedAt,
+		UpdatedAt:       e.UpdatedAt,
+		Archived:        e.Archived,
+		Disposed:        e.Disposed,
+		DisposalHistory: lo.If(e.DisposalHistory == nil, []types.Disposal{}).Else(e.DisposalHistory),
+		PurchasePrice:   e.PurchasePrice,
 
 		// Edges
 		Parent:     parent,

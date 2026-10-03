@@ -989,6 +989,57 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/entities/{id}/offboarding": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Entities"
+                ],
+                "summary": "Record asset offboarding (destruction requires attestation)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Entity ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Disposal route",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/repo.EntityOffboarding"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/types.Disposal"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    }
+                }
+            }
+        },
         "/v1/entities/{id}/path": {
             "get": {
                 "security": [
@@ -3491,6 +3542,17 @@ const docTemplate = `{
                     "description": "Description holds the value of the \"description\" field.",
                     "type": "string"
                 },
+                "disposal_history": {
+                    "description": "DisposalHistory holds the value of the \"disposal_history\" field.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.Disposal"
+                    }
+                },
+                "disposed": {
+                    "description": "Disposed holds the value of the \"disposed\" field.",
+                    "type": "boolean"
+                },
                 "edges": {
                     "description": "Edges holds the relations/edges for other nodes in the graph.\nThe values are being populated by the EntityQuery when eager-loading is set.",
                     "allOf": [
@@ -4874,6 +4936,23 @@ const docTemplate = `{
                 }
             }
         },
+        "repo.EntityOffboarding": {
+            "type": "object",
+            "required": [
+                "route"
+            ],
+            "properties": {
+                "route": {
+                    "type": "string",
+                    "enum": [
+                        "sale",
+                        "donation",
+                        "recycling",
+                        "destruction"
+                    ]
+                }
+            }
+        },
         "repo.EntityOut": {
             "type": "object",
             "properties": {
@@ -4902,6 +4981,15 @@ const docTemplate = `{
                 },
                 "description": {
                     "type": "string"
+                },
+                "disposalHistory": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.Disposal"
+                    }
+                },
+                "disposed": {
+                    "type": "boolean"
                 },
                 "entityType": {
                     "allOf": [
@@ -5098,6 +5186,15 @@ const docTemplate = `{
                 },
                 "description": {
                     "type": "string"
+                },
+                "disposalHistory": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.Disposal"
+                    }
+                },
+                "disposed": {
+                    "type": "boolean"
                 },
                 "entityType": {
                     "allOf": [
@@ -6319,6 +6416,20 @@ const docTemplate = `{
                 "TypeBoolean",
                 "TypeTime"
             ]
+        },
+        "types.Disposal": {
+            "type": "object",
+            "properties": {
+                "route": {
+                    "type": "string"
+                },
+                "submittedAt": {
+                    "type": "string"
+                },
+                "submittedBy": {
+                    "type": "string"
+                }
+            }
         },
         "usergroup.Role": {
             "type": "string",
