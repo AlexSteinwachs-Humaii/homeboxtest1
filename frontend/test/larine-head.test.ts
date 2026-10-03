@@ -26,6 +26,7 @@ describe("Larine shared HTML head", () => {
         crossorigin: "anonymous",
         defer: true,
         "data-token": "public-token-for-unit-test",
+        "data-api-url": "https://api-stage.larine.dev",
         "data-enabled": "always",
         "data-shortcut": "mod+shift+f",
         "data-source": "HomeBox - Test 1",

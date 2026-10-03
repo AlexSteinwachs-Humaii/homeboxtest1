@@ -18,6 +18,12 @@ HomeBox retains `Cross-Origin-Embedder-Policy: require-corp`. The widget respons
 
 Verified against the reported preview in a browser: the deployed script lacked `crossorigin`; replacing that script in the diagnostic browser with the same attributes plus `crossorigin=anonymous` produced a successful load event. This was a temporary browser-only check, not a deployment. ESLint and all 20 unit/baseline tests passed. A synthetic-token build verified one widget with `crossorigin=anonymous` in the root, home and fallback HTML; the synthetic output was deleted and the prior output restored. The live browser regression test now requires the attribute. Rebuild/restart the preview with the provisioned build-time token to deploy this fix. Real feedback submission has not been tested.
 
+## Next environment API routing review fix
+
+The widget now has `data-api-url=https://api-stage.larine.dev`, matching its `next.larine.dev` script and staging product token. The hostname is `larine`, not `lairne`. The published widget reads this attribute as its API base and appends `/api/feedback/ingest`; without the override it defaulted to the production API. The existing token configuration and anonymous CORS script loading remain unchanged.
+
+ESLint and 20 unit/baseline tests passed. A synthetic-token frontend build verified the staging API attribute and anonymous CORS in root, home and both fallback HTML files. Synthetic output was deleted and the prior output restored. No real feedback was submitted and authentication success is not claimed. Rebuild/restart the preview with the staging product's browser-visible token to apply the API override, then verify a real feedback submission.
+
 ## Original pass prerequisite
 
 Original status: story 1 was **not implemented**. No widget script, placeholder token, or guessed token attribute had been added.

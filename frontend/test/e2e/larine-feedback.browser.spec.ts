@@ -22,6 +22,7 @@ test("live widget rendering, loading and independent context", async ({ page }) 
   const script = page.locator(`script[src='${widgetURL}']`);
   await expect(script).toHaveCount(1);
   await expect(script).toHaveAttribute("crossorigin", "anonymous");
+  await expect(script).toHaveAttribute("data-api-url", "https://api-stage.larine.dev");
   await expect(script).toHaveAttribute("data-enabled", "always");
   await expect(script).toHaveAttribute("data-shortcut", "mod+shift+f");
   await expect(script).toHaveAttribute("data-source", "HomeBox - Test 1");

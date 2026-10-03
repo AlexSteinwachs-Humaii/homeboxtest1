@@ -65,6 +65,7 @@ export default defineNuxtConfig({
                 crossorigin: "anonymous",
                 defer: true,
                 "data-token": larineWidgetToken,
+                "data-api-url": "https://api-stage.larine.dev",
                 "data-enabled": "always",
                 "data-shortcut": "mod+shift+f",
                 "data-source": "HomeBox - Test 1",
