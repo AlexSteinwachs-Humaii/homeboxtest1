@@ -48,6 +48,35 @@
             {{ $t("tools.import_export_set.export_sub") }}
             <template #button> {{ $t("tools.import_export_set.export_button") }} </template>
           </DetailAction>
+          <form class="space-y-4 py-4" :aria-busy="exportBusy" @submit.prevent="downloadFilteredCSV">
+            <h3 class="font-semibold">{{ $t("tools.filtered_export.title") }}</h3>
+            <p class="text-sm text-muted-foreground">{{ $t("tools.filtered_export.description") }}</p>
+            <div class="space-y-2">
+              <Label for="inventory-export-search">{{ $t("tools.filtered_export.search") }}</Label>
+              <Input id="inventory-export-search" v-model="exportSearch" type="search" />
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <SearchFilter
+                v-model="exportLocations"
+                :label="$t('global.locations')"
+                :options="exportLocationOptions"
+              />
+              <SearchFilter v-model="exportTags" :label="$t('global.tags')" :options="exportTagOptions" />
+            </div>
+            <div class="flex items-center gap-2">
+              <Switch id="inventory-export-archived" v-model="exportArchived" />
+              <Label for="inventory-export-archived">{{ $t("tools.filtered_export.include_archived") }}</Label>
+            </div>
+            <p v-if="exportError" role="alert" class="text-sm text-destructive">{{ exportError }}</p>
+            <div class="flex flex-wrap gap-2">
+              <Button type="submit" :disabled="exportBusy || exportOptionsLoading">
+                {{ $t(exportBusy ? "tools.filtered_export.busy" : "tools.filtered_export.download") }}
+              </Button>
+              <Button type="button" variant="outline" @click="clearExportFilters">{{
+                $t("tools.filtered_export.clear")
+              }}</Button>
+            </div>
+          </form>
         </div>
       </BaseCard>
       <BaseCard>
@@ -192,6 +221,13 @@
   import BaseSectionHeader from "@/components/Base/SectionHeader.vue";
   import DetailAction from "@/components/DetailAction.vue";
 
+  import SearchFilter from "~/components/Search/Filter.vue";
+  import { Input } from "@/components/ui/input";
+  import { Label } from "@/components/ui/label";
+  import { Button } from "@/components/ui/button";
+  import { Switch } from "@/components/ui/switch";
+  import type { TreeItem } from "@/lib/api/types/data-contracts";
+
   const { t } = useI18n();
   const prefs = useViewPreferences();
 
@@ -221,6 +257,92 @@
     const url = api.items.exportURL(prefs.value.collectionId ?? undefined);
     window.open(url, "_blank");
   };
+
+  type ExportOption = { id: string; name: string; treeString?: string };
+  const exportSearch = ref("");
+  const exportLocations = ref<ExportOption[]>([]);
+  const exportTags = ref<ExportOption[]>([]);
+  const exportArchived = ref(false);
+  const exportLocationOptions = ref<ExportOption[]>([]);
+  const exportTagOptions = ref<ExportOption[]>([]);
+  const exportOptionsLoading = ref(true);
+  const exportBusy = ref(false);
+  const exportError = ref("");
+  let collectionVersion = 0;
+
+  function clearExportFilters() {
+    exportSearch.value = "";
+    exportLocations.value = [];
+    exportTags.value = [];
+    exportArchived.value = false;
+    exportError.value = "";
+  }
+
+  // Load fresh Tools-local options. Shared store caches may still belong to the
+  // previous collection, and older in-flight responses must not replace these.
+  watch(
+    () => prefs.value.collectionId,
+    async () => {
+      const version = ++collectionVersion;
+      clearExportFilters();
+      exportLocationOptions.value = [];
+      exportTagOptions.value = [];
+      exportOptionsLoading.value = true;
+      try {
+        const client = useUserApi();
+        const [locations, tags] = await Promise.all([client.items.getTree(), client.tags.getAll()]);
+        if (version !== collectionVersion) return;
+        if (locations.error || tags.error) throw new Error("Filter options unavailable");
+        const flatten = (items: TreeItem[], prefix = ""): ExportOption[] =>
+          items.flatMap(item => [
+            { id: item.id, name: item.name, treeString: prefix + item.name },
+            ...flatten(item.children ?? [], prefix + item.name + " > "),
+          ]);
+        exportLocationOptions.value = flatten(locations.data);
+        exportTagOptions.value = tags.data;
+      } catch {
+        if (version === collectionVersion) exportError.value = t("tools.filtered_export.options_error");
+      } finally {
+        if (version === collectionVersion) exportOptionsLoading.value = false;
+      }
+    },
+    { immediate: true, flush: "sync" }
+  );
+
+  async function downloadFilteredCSV() {
+    if (exportBusy.value || exportOptionsLoading.value) return;
+    const version = collectionVersion;
+    const tenant = prefs.value.collectionId ?? undefined;
+    const filters = {
+      q: exportSearch.value,
+      parentIds: exportLocations.value.map(o => o.id),
+      tags: exportTags.value.map(o => o.id),
+      includeArchived: exportArchived.value,
+    };
+    exportBusy.value = true;
+    exportError.value = "";
+    try {
+      const blob = await useUserApi().items.exportFilteredCSV(filters, tenant);
+      if (version !== collectionVersion) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `homebox-filtered-inventory-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      // Allow the browser to consume the object URL before releasing it.
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      if (version === collectionVersion) exportError.value = t("tools.filtered_export.error");
+    } finally {
+      exportBusy.value = false;
+    }
+  }
+
+  onBeforeUnmount(() => {
+    collectionVersion++;
+  });
 
   const ensureAssetIDs = async () => {
     const { isCanceled } = await confirm.open(t("tools.actions_set.ensure_ids_confirm"));

@@ -998,10 +998,21 @@
         "demo_mode_error": {
             "wipe_inventory": "Inventory, tags, locations and maintenance records cannot be wiped whilst Homebox is in demo mode. Please ensure that you are not in demo mode and try again."
         },
+        "filtered_export": {
+            "title": "Filtered inventory CSV",
+            "description": "Download every matching inventory item, not just one page. These filters apply only here. The full-collection export above remains unchanged.",
+            "search": "Search inventory (text or #asset-ID)",
+            "include_archived": "Include archived inventory",
+            "download": "Download filtered inventory CSV",
+            "busy": "Downloading CSV…",
+            "clear": "Clear filters",
+            "error": "Could not download inventory CSV. Please try again.",
+            "options_error": "Could not load filter options. Switch collections or reload to retry."
+        },
         "import_export": "Import/Export",
         "import_export_set": {
-            "export": "Export Inventory",
-            "export_button": "Export Inventory",
+            "export": "Full-collection CSV export",
+            "export_button": "Export full collection",
             "export_sub": "Exports the standard CSV format for Homebox. This will export all items in your inventory.",
             "import": "Import Inventory",
             "import_button": "Import Inventory",
