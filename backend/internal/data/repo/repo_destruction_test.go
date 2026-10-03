@@ -51,6 +51,10 @@ func TestDestructionAttestationValidationAndPersistence(t *testing.T) {
 			c.mutate(input.Destruction)
 			_, err := tRepos.Entities.OffboardByGroup(ctx, tGroup.ID, asset.ID, tUser.ID, input)
 			require.ErrorIs(t, err, ErrDestructionAttestationRequired)
+			active, err := tRepos.Entities.GetOneByGroup(ctx, tGroup.ID, asset.ID)
+			require.NoError(t, err)
+			require.False(t, active.Disposed)
+			require.Empty(t, active.DisposalHistory)
 		})
 	}
 	for _, c := range []struct {
@@ -63,6 +67,7 @@ func TestDestructionAttestationValidationAndPersistence(t *testing.T) {
 		{"thumbnail", "thumbnail", "image/jpeg", "upload", asset.ID},
 		{"non image photo", "photo", "text/plain", "upload", asset.ID},
 		{"empty upload path", "photo", "image/jpeg", "", asset.ID},
+		{"blank upload path", "photo", "image/jpeg", " \n\t ", asset.ID},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			att, err := tClient.Attachment.Create().SetEntityID(c.entity).SetType(attachment.Type(c.typ)).SetMimeType(c.mime).SetPath(c.path).Save(ctx)

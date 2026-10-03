@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -53,17 +54,29 @@ func TestEntityOffboardingHandler(t *testing.T) {
 		for _, body := range []string{
 			strings.Replace(valid, `"declared":true`, `"declared":false`, 1),
 			strings.Replace(valid, `2026-10-01`, `2026-02-30`, 1),
+			strings.Replace(valid, `2026-10-01`, `0001-01-01`, 1),
+			strings.Replace(valid, `"method":"Shredded"`, `"method":"  "`, 1),
+			strings.Replace(valid, `"method":"Shredded"`, `"method":null`, 1),
+			strings.Replace(valid, `"evidence":[{"attachmentId":"`+certificate.ID.String()+`","kind":"certificate"}]`, `"evidence":[]`, 1),
 			strings.Replace(valid, certificate.ID.String(), uuid.NewString(), 1),
 		} {
 			_, err := call(asset.ID, body, grp.ID)
-			require.Error(t, err)
+			require.Error(t, err, body)
 			active, err := repos.Entities.GetOneByGroup(ctx, grp.ID, asset.ID)
 			require.NoError(t, err)
 			require.False(t, active.Disposed)
+			require.Empty(t, active.DisposalHistory)
 		}
 		spoofed := strings.Replace(valid, `"declared":true`, `"declared":true,"submittedBy":"`+uuid.NewString()+`","submittedAt":"2000-01-01T00:00:00Z","declaration":"spoofed"`, 1)
+		spoofed = strings.Replace(spoofed, `"route":"destruction"`, `"route":"destruction","submittedBy":"`+uuid.NewString()+`","submittedAt":"2000-01-01T00:00:00Z"`, 1)
+		start := time.Now().UTC()
 		w, err := call(asset.ID, spoofed, grp.ID)
 		if err != nil {
+			// A strict decoder may reject spoofed fields, but must not dispose.
+			active, readErr := repos.Entities.GetOneByGroup(ctx, grp.ID, asset.ID)
+			require.NoError(t, readErr)
+			require.False(t, active.Disposed)
+			require.Empty(t, active.DisposalHistory)
 			w, err = call(asset.ID, valid, grp.ID)
 		}
 		require.NoError(t, err)
@@ -71,7 +84,11 @@ func TestEntityOffboardingHandler(t *testing.T) {
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &record))
 		require.Equal(t, user.ID, record.SubmittedBy)
 		require.Equal(t, types.DestructionDeclaration, record.Destruction.Declaration)
-		require.Greater(t, record.SubmittedAt.Year(), 2000)
+		require.False(t, record.SubmittedAt.Before(start))
+		require.False(t, record.SubmittedAt.After(time.Now().UTC()))
+		require.Equal(t, "2026-10-01", record.Destruction.Date.String())
+		require.Equal(t, "Shredded", record.Destruction.Method)
+		require.Equal(t, []types.DestructionEvidence{{AttachmentID: certificate.ID, Kind: "certificate"}}, record.Destruction.Evidence)
 		stored, err := repos.Entities.GetOneByGroup(ctx, grp.ID, asset.ID)
 		require.NoError(t, err)
 		require.Equal(t, []types.Disposal{record}, stored.DisposalHistory)

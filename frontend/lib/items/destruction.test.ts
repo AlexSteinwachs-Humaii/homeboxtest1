@@ -29,6 +29,7 @@ describe("destruction validation", () => {
     { declared: false },
     { date: "" },
     { date: "2026-02-30" },
+    { date: "0001-01-01" },
     { method: " \n " },
     { evidence: [] },
     { evidence: [{ attachmentId: "missing", kind: "photo" }] },
@@ -36,8 +37,17 @@ describe("destruction validation", () => {
   ])("rejects incomplete input %j", patch => {
     expect(validateDestruction({ ...valid(), ...patch }, [photo]).length).toBeGreaterThan(0);
   });
+  it("accepts certificate-only evidence but revalidates when attachments change", () => {
+    const certificate = { ...photo, type: "attachment", mimeType: "application/pdf" };
+    const input = { ...valid(), evidence: [{ attachmentId: photo.id, kind: "certificate" }] };
+    expect(validateDestruction(input, [certificate])).toEqual([]);
+    expect(validateDestruction(input, [])).toContain("asset_offboarding.evidence_required");
+    expect(validateDestruction(input, [{ ...certificate, mimeType: "link/url" }])).toContain(
+      "asset_offboarding.evidence_required"
+    );
+  });
   it("rejects external links, thumbnails, missing paths and duplicate references", () => {
-    for (const patch of [{ mimeType: "link/url" }, { type: "thumbnail" }, { path: "" }]) {
+    for (const patch of [{ mimeType: "link/url" }, { type: "thumbnail" }, { path: "" }, { path: " \n\t " }]) {
       expect(validateDestruction(valid(), [{ ...photo, ...patch }]).length).toBeGreaterThan(0);
     }
     const input = valid();

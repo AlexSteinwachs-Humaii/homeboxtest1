@@ -6,7 +6,7 @@ export const destructionDeclaration =
 // Match the server's upload-only evidence policy. Generic PDF/image uploads
 // selected here are offered specifically as destruction certificates.
 export function destructionEvidenceKind(attachment: ItemAttachment | undefined): "photo" | "certificate" | null {
-  if (!attachment?.path || !attachment.mimeType) return null;
+  if (!attachment?.path?.trim() || !attachment.mimeType) return null;
   const image = attachment.mimeType.startsWith("image/");
   if (attachment.type === "photo" && image) return "photo";
   if (attachment.type === "attachment" && (image || attachment.mimeType === "application/pdf")) return "certificate";
@@ -19,7 +19,12 @@ export function validateDestruction(input: DestructionInput, attachments: ItemAt
   if (!input.declared) errors.push("asset_offboarding.consent_required");
   const date = typeof input.date === "string" ? input.date : "";
   const parsed = new Date(`${date}T00:00:00Z`);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) {
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+    date === "0001-01-01" || // Go's zero date is not a supplied destruction date.
+    isNaN(parsed.getTime()) ||
+    parsed.toISOString().slice(0, 10) !== date
+  ) {
     errors.push("asset_offboarding.date_required");
   }
   if (!input.method.trim()) errors.push("asset_offboarding.method_required");
