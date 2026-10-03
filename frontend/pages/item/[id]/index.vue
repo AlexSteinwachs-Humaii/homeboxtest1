@@ -3,7 +3,7 @@
   import { toast } from "@/components/ui/sonner";
   import type { AnyDetail, Detail, Details } from "~~/components/global/DetailsSection/types";
   import { filterZeroValues } from "~~/components/global/DetailsSection/types";
-  import type { ItemAttachment } from "~~/lib/api/types/data-contracts";
+  import type { EntityOut, ItemAttachment } from "~~/lib/api/types/data-contracts";
   import MdiPackageVariant from "~icons/mdi/package-variant";
   import MdiPlus from "~icons/mdi/plus";
   import MdiMinus from "~icons/mdi/minus";
@@ -45,6 +45,7 @@
   import DetailsSection from "~/components/global/DetailsSection/DetailsSection.vue";
   import ItemAttachmentsList from "~/components/Item/AttachmentsList.vue";
   import ItemViewSelectable from "~/components/Item/View/Selectable.vue";
+  import ItemOffboarding from "~/components/Item/Offboarding.vue";
 
   const { t } = useI18n();
 
@@ -83,6 +84,14 @@
   onMounted(() => {
     refresh();
   });
+
+  // Read/write in script so the lifecycle panel receives the entity, not its async-data ref.
+  function offboardingItem() {
+    return item.value!;
+  }
+  function updateOffboardingItem(updated: EntityOut) {
+    item.value = updated;
+  }
 
   const lastRoute = ref(route.fullPath);
   watchEffect(() => {
@@ -800,6 +809,12 @@
 
         <!-- anything in this is not rendered if on another page -->
         <template v-if="!hasNested">
+          <ItemOffboarding
+            v-if="item"
+            :key="offboardingItem().id"
+            :item="offboardingItem()"
+            @updated="updateOffboardingItem"
+          />
           <BaseCard v-if="photos && photos.length > 0">
             <template #title> {{ $t("items.photos") }} </template>
             <div class="scroll-bg container mx-auto flex max-h-[500px] flex-wrap gap-2 overflow-y-scroll border-t p-4">
