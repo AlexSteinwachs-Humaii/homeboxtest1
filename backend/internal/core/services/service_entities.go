@@ -564,12 +564,27 @@ func (svc *EntityService) patchCSVParentRefs(ctx context.Context, gid uuid.UUID,
 }
 
 func (svc *EntityService) ExportCSV(ctx context.Context, gid uuid.UUID, hbURL string) ([][]string, error) {
+	return svc.exportCSV(ctx, gid, hbURL, nil)
+}
+
+// ExportFilteredCSV exports matching inventory only, without list pagination.
+func (svc *EntityService) ExportFilteredCSV(ctx context.Context, gid uuid.UUID, hbURL string, query repo.EntityQuery) ([][]string, error) {
+	return svc.exportCSV(ctx, gid, hbURL, &query)
+}
+
+func (svc *EntityService) exportCSV(ctx context.Context, gid uuid.UUID, hbURL string, query *repo.EntityQuery) ([][]string, error) {
 	ctx, span := entityServiceTracer().Start(ctx, "service.EntityService.ExportCSV",
 		trace.WithAttributes(attribute.String("group.id", gid.String())))
 	defer span.End()
 
 	loadCtx, loadSpan := entityServiceTracer().Start(ctx, "service.EntityService.ExportCSV.load")
-	items, err := svc.repo.Entities.GetAll(loadCtx, gid)
+	var items []repo.EntityOut
+	var err error
+	if query == nil {
+		items, err = svc.repo.Entities.GetAll(loadCtx, gid)
+	} else {
+		items, err = svc.repo.Entities.GetFilteredInventory(loadCtx, gid, *query)
+	}
 	if err != nil {
 		recordServiceSpanError(loadSpan, err)
 		loadSpan.End()

@@ -95,15 +95,7 @@ func (ctrl *V1Controller) HandleEntitiesGetAll() errchain.HandlerFunc {
 
 		v.FilterChildren = queryBool(params.Get("filterChildren"))
 
-		if strings.HasPrefix(v.Search, "#") {
-			aidStr := strings.TrimPrefix(v.Search, "#")
-
-			aid, ok := repo.ParseAssetID(aidStr)
-			if ok {
-				v.Search = ""
-				v.AssetID = aid
-			}
-		}
+		resolveAssetSearch(&v)
 
 		return v
 	}
@@ -547,6 +539,11 @@ func (ctrl *V1Controller) HandleLocationTreeQuery() errchain.HandlerFunc {
 //
 //	@Summary	Export Entities
 //	@Tags		Entities
+//	@Param		filtered		query	bool		false	"Export matching inventory only (default excludes archived)"
+//	@Param		q				query	string		false	"Text or #asset-ID search in filtered mode"
+//	@Param		parentIds		query	[]string	false	"Direct parent IDs in filtered mode"	collectionFormat(multi)
+//	@Param		tags			query	[]string	false	"Tag IDs including descendants in filtered mode"	collectionFormat(multi)
+//	@Param		includeArchived	query	bool		false	"Include archived inventory in filtered mode"
 //	@Success	200	{string}	string	"text/csv"
 //	@Router		/v1/entities/export [GET]
 //	@Security	Bearer
@@ -558,7 +555,17 @@ func (ctrl *V1Controller) HandleEntitiesExport() errchain.HandlerFunc {
 		ctx := services.NewContext(spanCtx)
 		span.SetAttributes(attribute.String("group.id", ctx.GID.String()))
 
-		csvData, err := ctrl.svc.Entities.ExportCSV(spanCtx, ctx.GID, GetHBURL(r, &ctrl.config.Options, ctrl.url))
+		query, filtered, err := extractFilteredExportQuery(r.URL.Query())
+		if err != nil {
+			return validate.NewRequestError(err, http.StatusBadRequest)
+		}
+		var csvData [][]string
+		hbURL := GetHBURL(r, &ctrl.config.Options, ctrl.url)
+		if filtered {
+			csvData, err = ctrl.svc.Entities.ExportFilteredCSV(spanCtx, ctx.GID, hbURL, query)
+		} else {
+			csvData, err = ctrl.svc.Entities.ExportCSV(spanCtx, ctx.GID, hbURL)
+		}
 		if err != nil {
 			recordCtrlSpanError(span, err)
 			log.Err(err).Msg("failed to export entities")
