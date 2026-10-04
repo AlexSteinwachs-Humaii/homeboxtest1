@@ -95,6 +95,14 @@
     { immediate: true }
   );
 
+  // The selector lives in the sidebar sheet, which is not mounted while the
+  // mobile drawer is closed. Administration still needs the selected collection.
+  onMounted(() => {
+    if (!selectedCollection.value) {
+      void reloadCollections();
+    }
+  });
+
   const handleLeaveCollection = async () => {
     if (!selectedCollection.value) return;
 
