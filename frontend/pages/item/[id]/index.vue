@@ -74,15 +74,32 @@
     return route.fullPath.split("/").at(-1) !== itemId.value;
   });
 
-  const { data: item, refresh } = useAsyncData(itemId.value, async () => {
-    const { data, error } = await api.items.get(itemId.value);
-    if (error) {
-      toast.error(t("items.toast.failed_load_item"));
-      navigateTo("/home");
-      return;
+  const itemLoadFailed = ref(false);
+
+  const {
+    data: item,
+    pending: itemPending,
+    refresh,
+  } = useAsyncData(
+    () => `item-detail:${itemId.value}`,
+    async () => {
+      itemLoadFailed.value = false;
+      const { data, error } = await api.items.get(itemId.value);
+      if (error || !data) {
+        // Keep the existing toast and home recovery. Do not leave the previous record on screen.
+        itemLoadFailed.value = true;
+        toast.error(t("items.toast.failed_load_item"));
+        await navigateTo("/home");
+        return null;
+      }
+      return data;
+    },
+    {
+      // Without lazy, Nuxt suspends the page until the item returns, so a held or failed
+      // fetch never paints loading or error feedback.
+      lazy: true,
     }
-    return data;
-  });
+  );
   onMounted(() => {
     refresh();
   });
@@ -152,10 +169,9 @@
             originalType: cur.mimeType,
             attachmentId: cur.id,
           };
-          if (cur.thumbnail) {
-            photo.thumbnailSrc = api.authURL(`/entities/${item.value!.id}/attachments/${cur.thumbnail.id}`);
-          } else {
-            photo.thumbnailSrc = photo.originalSrc; // fallback to itself if no thumbnail
+          const thumbnailId = cur.thumbnail?.id;
+          if (thumbnailId) {
+            photo.thumbnailSrc = api.authURL(`/entities/${item.value!.id}/attachments/${thumbnailId}`);
           }
           acc.push(photo);
         }
@@ -652,7 +668,7 @@
 </script>
 
 <template>
-  <BaseContainer v-if="item" class="flex min-w-0 flex-col gap-glass-section">
+  <BaseContainer v-if="item && item.id === itemId && !itemLoadFailed" class="flex min-w-0 flex-col gap-glass-section">
     <!-- set page title -->
     <Title>{{ item.name }}</Title>
 
@@ -887,18 +903,28 @@
             <DetailsSection variant="compact" :details="purchaseDetails" />
           </BaseCard>
 
-          <BaseCard v-if="photos && photos.length > 0">
+          <BaseCard v-if="photos.length > 0" variant="readable" data-testid="item-photos">
             <template #title> {{ $t("items.photos") }} </template>
-            <div class="scroll-bg container mx-auto flex max-h-[500px] flex-wrap gap-2 overflow-y-scroll border-t p-4">
+            <div
+              class="scroll-bg container mx-auto flex max-h-[500px] max-w-full flex-wrap gap-2 overflow-y-auto border-t p-4"
+            >
               <button
-                v-for="(img, i) in photos"
-                :key="i"
+                v-for="img in photos"
+                :key="img.attachmentId"
                 type="button"
-                class="glass-focus min-h-touch min-w-touch"
+                class="glass-focus inline-flex min-h-touch min-w-touch items-center justify-center"
                 :aria-label="$t('items.photo')"
+                data-testid="item-photo"
+                :data-attachment-id="img.attachmentId"
                 @click="openImageDialog(img, item.id)"
               >
-                <img class="max-h-[200px] rounded" :src="img.thumbnailSrc" :alt="$t('items.photo')" loading="lazy" />
+                <img
+                  class="max-h-[200px] max-w-full rounded"
+                  :src="img.thumbnailSrc || img.originalSrc"
+                  :alt="$t('items.photo')"
+                  data-testid="item-photo-image"
+                  loading="lazy"
+                />
               </button>
             </div>
           </BaseCard>
@@ -953,7 +979,7 @@
       </div>
     </section>
 
-    <section v-if="items && items.length > 0" class="min-w-0">
+    <section v-if="items && items.length > 0" class="min-w-0" data-testid="item-children">
       <ItemViewSelectable :items="items" @refresh="refreshItemList" />
     </section>
 
@@ -970,6 +996,16 @@
         <DateTime :date="item.updatedAt" />
       </div>
     </footer>
+  </BaseContainer>
+  <BaseContainer
+    v-else
+    class="flex min-w-0 flex-col gap-3 py-6"
+    :data-testid="itemLoadFailed ? 'item-load-error' : 'item-loading'"
+    :aria-busy="itemPending && !itemLoadFailed ? true : undefined"
+  >
+    <p role="status" class="text-sm font-medium text-foreground">
+      {{ itemLoadFailed ? $t("items.load_error") : $t("items.loading") }}
+    </p>
   </BaseContainer>
 </template>
 

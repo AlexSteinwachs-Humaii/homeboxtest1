@@ -632,6 +632,8 @@
         "invalid_asset_id": "Invalid Asset ID",
         "last": "Last",
         "lifetime_warranty": "Lifetime Warranty",
+        "load_error": "This item could not be loaded.",
+        "loading": "Loading item…",
         "location": "Location",
         "manual": "Manual",
         "manuals": "Manuals",

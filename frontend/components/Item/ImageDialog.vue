@@ -36,7 +36,7 @@
       if (params.type === "preloaded") {
         image.originalSrc = params.originalSrc;
         image.originalType = params.originalType;
-        image.thumbnailSrc = params.thumbnailSrc;
+        image.thumbnailSrc = params.thumbnailSrc || params.originalSrc;
       } else if (params.type === "attachment") {
         image.originalSrc = api.authURL(`/entities/${params.itemId}/attachments/${params.attachmentId}`);
         image.originalType = params.mimeType;
