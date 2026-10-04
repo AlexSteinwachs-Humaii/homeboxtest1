@@ -3,8 +3,9 @@
   import { useI18n } from "vue-i18n";
   import MdiPlus from "~icons/mdi/plus";
   import { useHomeOverview } from "./statistics";
-  import { itemsTable } from "./table";
+  import { useHomeRecent } from "./table";
   import { formatCollectionValue } from "./overview";
+  import { RECENT_VIEW_ALL } from "./recent";
   import { useTagStore } from "~/stores/tags";
   import { useLocationStore } from "~~/stores/locations";
   import { getLocaleCode } from "~~/composables/use-formatters";
@@ -13,12 +14,10 @@
   import { useDialog } from "~/components/ui/dialog-provider";
   import { Button } from "~/components/ui/button";
   import BaseContainer from "@/components/Base/Container.vue";
-  import BaseCard from "@/components/Base/Card.vue";
   import Subtitle from "~/components/global/Subtitle.vue";
   import ItemCard from "~/components/Item/Card.vue";
   import LocationCard from "~/components/Location/Card.vue";
   import TagChip from "~/components/Tag/Chip.vue";
-  import Table from "~/components/Item/View/Table.vue";
 
   const { t } = useI18n();
   const { openDialog } = useDialog();
@@ -27,9 +26,8 @@
     middleware: ["auth"],
   });
 
-  const api = useUserApi();
-  const breakpoints = useBreakpoints();
   const overview = useHomeOverview();
+  const recent = useHomeRecent(() => overview.identity.value?.currency ?? "");
   const { collections } = useCollections();
 
   const locationStore = useLocationStore();
@@ -37,8 +35,6 @@
 
   const tagsStore = useTagStore();
   const tags = computed(() => tagsStore.tags);
-
-  const itemTable = itemsTable(api);
 
   const knownName = computed(() => {
     const id = overview.activeId.value;
@@ -69,6 +65,10 @@
 
   function retryOverview() {
     void overview.refresh();
+  }
+
+  function retryRecent() {
+    void recent.refresh();
   }
 </script>
 
@@ -184,15 +184,61 @@
         </div>
       </section>
 
-      <section>
-        <Subtitle> {{ $t("home.recently_added") }} </Subtitle>
+      <section data-testid="home-recent" :data-phase="recent.phase.value" :aria-busy="recent.phase.value === 'loading'">
+        <div class="mb-3 flex items-center justify-between gap-3 pl-1">
+          <h2 class="min-w-0 text-lg font-semibold text-foreground">{{ $t("home.recently_added") }}</h2>
+          <NuxtLink
+            v-if="recent.phase.value !== 'no-collection'"
+            :to="RECENT_VIEW_ALL"
+            class="glass-focus inline-flex min-h-11 shrink-0 items-center text-sm font-medium text-primary"
+            data-testid="home-recent-view-all"
+          >
+            {{ $t("home.view_all") }}
+            <span aria-hidden="true">›</span>
+          </NuxtLink>
+        </div>
 
-        <p v-if="itemTable.items.length === 0" class="ml-2 text-sm">{{ $t("items.no_results") }}</p>
-        <BaseCard v-else-if="breakpoints.lg">
-          <Table :items="itemTable.items" />
-        </BaseCard>
-        <div v-else class="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <ItemCard v-for="item in itemTable.items" :key="item.id" :item="item" />
+        <p
+          v-if="recent.phase.value === 'loading'"
+          class="text-sm text-muted-foreground"
+          role="status"
+          data-testid="home-recent-loading"
+        >
+          {{ $t("home.recent_loading") }}
+        </p>
+        <div
+          v-else-if="recent.phase.value === 'error'"
+          class="flex flex-col items-start gap-3"
+          role="alert"
+          data-testid="home-recent-error"
+        >
+          <p class="text-sm text-foreground">{{ $t("home.recent_error") }}</p>
+          <Button
+            type="button"
+            variant="outline"
+            class="glass-focus min-h-11"
+            data-testid="home-recent-retry"
+            @click="retryRecent"
+          >
+            {{ $t("home.retry") }}
+          </Button>
+        </div>
+        <p
+          v-else-if="recent.phase.value === 'no-collection'"
+          class="text-sm text-muted-foreground"
+          data-testid="home-recent-no-collection"
+        >
+          {{ $t("home.no_collection") }}
+        </p>
+        <p
+          v-else-if="recent.phase.value === 'empty'"
+          class="text-sm text-muted-foreground"
+          data-testid="home-recent-empty"
+        >
+          {{ $t("home.recent_empty") }}
+        </p>
+        <div v-else class="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+          <ItemCard v-for="card in recent.cards.value" :key="card.id" variant="overview" :detail="card" />
         </div>
       </section>
 

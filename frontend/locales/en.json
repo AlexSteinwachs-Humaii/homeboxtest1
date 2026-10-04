@@ -517,7 +517,14 @@
         "stats_error": "Could not load collection statistics.",
         "retry": "Retry",
         "empty": "This collection is empty. Create an item when you are ready.",
-        "no_collection": "Select a collection to see what you own."
+        "no_collection": "Select a collection to see what you own.",
+        "view_all": "View all",
+        "recent_loading": "Loading recently added items…",
+        "recent_error": "Could not load recently added items.",
+        "recent_empty": "Nothing has been added yet.",
+        "no_photo": "No photo",
+        "qty": "Qty {count}",
+        "unnamed": "Unnamed item"
     },
     "index": {
         "back_to_login": "Back to login",
