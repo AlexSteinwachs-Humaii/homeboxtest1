@@ -154,6 +154,10 @@ describe("Glass v5 materials", () => {
     expect(css).toContain('html[data-glass-effects="off"]');
     expect(css).toContain("@supports not ((backdrop-filter: blur(1px))");
     expect(css).toContain("prefers-reduced-transparency: reduce");
+    expect(css).toContain("prefers-reduced-motion: reduce");
+    expect(css).toContain("background-attachment: scroll");
+    expect(css).toContain('[data-mobile="true"][data-sidebar="sidebar"]');
+    expect(css).not.toContain("overflow-x: hidden");
     expect(css).toContain("--glass-touch: 2.75rem");
     expect(css).toContain(".glass-panel");
     expect(css).toContain(".glass-field");

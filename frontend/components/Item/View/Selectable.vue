@@ -55,7 +55,10 @@
     <MaintenanceEditModal />
     <ItemChangeDetails />
 
-    <BaseSectionHeader class="flex items-center justify-between" :class="{ 'mb-2 mt-4': !externalPagination }">
+    <BaseSectionHeader
+      class="flex min-w-0 max-w-full flex-wrap items-center justify-between gap-2"
+      :class="{ 'mb-2 mt-4': !externalPagination }"
+    >
       <div class="flex gap-2 text-nowrap">
         {{ $t("components.item.view.selectable.items") }}
         <Badge v-if="!externalPagination">
@@ -71,7 +74,7 @@
       </template>
       <template #description>
         <div v-if="!viewSet">
-          <ButtonGroup>
+          <ButtonGroup class="max-w-full flex-wrap">
             <Button size="sm" :variant="itemView === 'card' ? 'default' : 'outline'" @click="setViewPreference('card')">
               <MdiCardTextOutline class="size-5" />
               {{ $t("components.item.view.selectable.card") }}

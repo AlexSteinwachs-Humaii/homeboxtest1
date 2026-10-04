@@ -16,7 +16,7 @@
     <CollectionCreateModal />
     <CollectionJoinModal />
     <CollectionInviteCreateModal />
-    <SidebarProvider :default-open="sidebarState">
+    <SidebarProvider :default-open="sidebarState" class="glass-shell min-w-0 max-w-full">
       <Sidebar variant="floating" collapsible="icon">
         <SidebarHeader class="gap-3">
           <NuxtLink
@@ -43,7 +43,7 @@
                 </span>
               </SidebarMenuButton>
             </DropdownMenuTrigger>
-            <DropdownMenuContent class="z-40 min-w-[var(--reka-dropdown-menu-trigger-width)]">
+            <DropdownMenuContent class="min-w-[var(--reka-dropdown-menu-trigger-width)]">
               <DropdownMenuItem
                 v-for="btn in dropdown"
                 :key="btn.id"
@@ -145,8 +145,8 @@
 
         <SidebarRail />
       </Sidebar>
-      <SidebarInset class="glass-canvas min-h-dvh max-w-full bg-background-accent">
-        <div class="relative flex min-h-dvh flex-col">
+      <SidebarInset class="glass-canvas min-h-dvh min-w-0 max-w-full bg-background-accent">
+        <div class="relative flex min-h-dvh min-w-0 max-w-full flex-col">
           <!--
             Height is --header-height / --header-height-mobile. Item and location
             edit sticky actions offset by those variables. z-20 stays under dialogs
@@ -155,10 +155,14 @@
             screens and overlapped this row. Search and Scan stay in this row either way.
           -->
           <div
-            class="glass-header sticky top-0 z-20 flex h-[var(--header-height-mobile)] items-center gap-2 px-3 sm:h-[var(--header-height)]"
+            class="glass-header sticky top-0 z-20 flex h-[var(--header-height-mobile)] min-w-0 max-w-full items-center gap-2 px-3 sm:h-[var(--header-height)]"
           >
             <SidebarTrigger class="shrink-0" variant="default" />
-            <NuxtLink to="/home" class="glass-brand shrink-0 md:hidden" :aria-label="$t('menu.home')">
+            <NuxtLink
+              to="/home"
+              class="glass-brand hidden shrink-0 min-[360px]:flex md:hidden"
+              :aria-label="$t('menu.home')"
+            >
               <AppLogo class="size-8" />
             </NuxtLink>
             <form class="flex min-w-0 flex-1 items-center gap-2" role="search" @submit.prevent="triggerSearch">

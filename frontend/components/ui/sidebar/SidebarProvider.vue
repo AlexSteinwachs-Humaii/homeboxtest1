@@ -53,6 +53,9 @@
   }
 
   useEventListener("keydown", (event: KeyboardEvent) => {
+    if (event.key === "Escape" && isMobile.value && openMobile.value) {
+      setOpenMobile(false);
+    }
     if (event.key === SIDEBAR_KEYBOARD_SHORTCUT && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
       toggleSidebar();

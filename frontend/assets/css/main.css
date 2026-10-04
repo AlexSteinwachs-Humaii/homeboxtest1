@@ -982,7 +982,9 @@
   html, body {
     @apply bg-background text-foreground;
     width: 100%;
-    overflow-x: hidden;
+    max-width: 100%;
+    /* Do not clip horizontal overflow here. A hidden overflow masks shell and
+       route content that should stay reachable by scrolling. */
   }
 }
 
@@ -1246,6 +1248,37 @@ h6 {
   box-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/*
+ * Shell chrome stays within the viewport. Wide route content scrolls with the
+ * document instead of being clipped off the page.
+ */
+.glass-shell {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Empty toasts use a fixed 356px width that overflows a narrow window. */
+[data-sonner-toaster] {
+  --width: min(356px, calc(100vw - 2rem));
+  max-width: calc(100vw - 1rem);
+}
+
+.glass-shell-drawer {
+  min-height: 0;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+/* Mobile drawer never wider than the window, leaving a strip to dismiss it. */
+[data-mobile="true"][data-sidebar="sidebar"] {
+  width: min(18rem, calc(100vw - 1rem));
+  max-width: calc(100vw - 1rem);
+  height: 100dvh;
+  max-height: 100dvh;
 }
 
 :is(html:not([data-theme]), html[data-theme="homebox"]) [data-sidebar="sidebar"],
@@ -1320,6 +1353,11 @@ h6 {
   -webkit-backdrop-filter: blur(16px) saturate(1.15);
 }
 
+/*
+ * Solid navigation when blur cannot be used. html[data-glass-effects="off"] is the
+ * explicit switch a browser check sets; it does not depend on @supports or
+ * prefers-reduced-transparency actually matching.
+ */
 html[data-glass-effects="off"] [data-sidebar="sidebar"],
 html[data-glass-effects="off"] .glass-nav,
 html[data-glass-effects="off"] .glass-tabs,
@@ -1329,15 +1367,24 @@ html[data-glass-effects="off"] .glass-field {
   -webkit-backdrop-filter: none;
 }
 
+:is(html[data-glass-effects="off"]:not([data-theme]), html[data-glass-effects="off"][data-theme="homebox"]) body {
+  background-attachment: scroll;
+}
+
 :is(html[data-glass-effects="off"]:not([data-theme]), html[data-glass-effects="off"][data-theme="homebox"]) [data-sidebar="sidebar"],
 :is(html[data-glass-effects="off"]:not([data-theme]), html[data-glass-effects="off"][data-theme="homebox"]) .glass-nav,
 :is(html[data-glass-effects="off"]:not([data-theme]), html[data-glass-effects="off"][data-theme="homebox"]) .glass-tabs {
   background-color: hsl(var(--glass-nav-fallback));
   background-image: none;
   color: hsl(var(--foreground));
+  box-shadow: none;
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :is(html:not([data-theme]), html[data-theme="homebox"]) body {
+    background-attachment: scroll;
+  }
+
   :is(html:not([data-theme]), html[data-theme="homebox"]) [data-sidebar="sidebar"],
   :is(html:not([data-theme]), html[data-theme="homebox"]) .glass-nav,
   :is(html:not([data-theme]), html[data-theme="homebox"]) .glass-tabs {
@@ -1345,10 +1392,15 @@ html[data-glass-effects="off"] .glass-field {
     background-image: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+    box-shadow: none;
   }
 }
 
 @media (prefers-reduced-transparency: reduce) {
+  :is(html:not([data-theme]), html[data-theme="homebox"]) body {
+    background-attachment: scroll;
+  }
+
   :is(html:not([data-theme]), html[data-theme="homebox"]) [data-sidebar="sidebar"],
   :is(html:not([data-theme]), html[data-theme="homebox"]) .glass-nav,
   :is(html:not([data-theme]), html[data-theme="homebox"]) .glass-tabs {
@@ -1356,14 +1408,23 @@ html[data-glass-effects="off"] .glass-field {
     background-image: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+    box-shadow: none;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  :is(html:not([data-theme]), html[data-theme="homebox"]) body {
+    /* Fixed attachment repaints the whole gradient while scrolling. */
+    background-attachment: scroll;
+  }
+
   [data-sidebar="sidebar"],
+  [role="dialog"],
   .glass-header,
   .glass-nav,
-  .glass-action {
-    transition: none;
+  .glass-action,
+  .glass-tabs {
+    transition: none !important;
+    animation: none !important;
   }
 }

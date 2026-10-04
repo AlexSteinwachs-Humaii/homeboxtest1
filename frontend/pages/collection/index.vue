@@ -201,7 +201,7 @@
 </script>
 
 <template>
-  <BaseContainer>
+  <BaseContainer class="min-w-0 max-w-full">
     <Title>{{ t("menu.collection_options") }}</Title>
 
     <section>
@@ -222,7 +222,7 @@
       </Card>
 
       <div class="my-3 flex flex-wrap items-center justify-between gap-2">
-        <ButtonGroup>
+        <ButtonGroup class="w-full max-w-full flex-wrap">
           <Button
             v-for="tab in tabs"
             :key="tab.id"

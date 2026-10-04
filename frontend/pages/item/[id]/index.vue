@@ -743,8 +743,8 @@
         </div>
       </Card>
 
-      <div class="mb-6 mt-3 flex flex-wrap items-center justify-between">
-        <ButtonGroup>
+      <div class="mb-6 mt-3 flex min-w-0 max-w-full flex-wrap items-center justify-between">
+        <ButtonGroup class="w-full max-w-full flex-wrap">
           <Button
             v-for="tab in tabs"
             :key="tab.id"
