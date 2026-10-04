@@ -6,7 +6,11 @@
         role="combobox"
         :aria-expanded="open"
         :size="sidebar.state.value === 'collapsed' ? 'icon' : undefined"
-        :class="sidebar.state.value === 'collapsed' ? 'size-10' : 'w-full justify-between drop-shadow-md'"
+        :class="
+          sidebar.state.value === 'collapsed'
+            ? 'glass-focus size-11 min-h-11 min-w-11'
+            : 'glass-focus min-h-11 w-full justify-between rounded-full drop-shadow-md'
+        "
         :aria-label="t('components.collection.selector.select_collection')"
         :title="t('components.collection.selector.select_collection')"
       >
@@ -34,6 +38,7 @@
       <Command :ignore-filter="true">
         <CommandGroup>
           <CommandItem
+            class="min-h-11"
             value="create-collection"
             @select="
               () => {
@@ -45,6 +50,7 @@
             <Plus class="mr-2 size-4" /> {{ t("components.collection.selector.create_collection") }}
           </CommandItem>
           <CommandItem
+            class="min-h-11"
             value="join-collection"
             @select="
               () => {
@@ -56,7 +62,7 @@
             <UserPlus class="mr-2 size-4" /> {{ t("components.collection.selector.join_collection") }}
           </CommandItem>
           <CommandItem as-child value="collection-settings">
-            <NuxtLink to="/collection/members" class="flex w-full items-center" @click="open = false">
+            <NuxtLink to="/collection/members" class="flex min-h-11 w-full items-center" @click="open = false">
               <Settings class="mr-2 size-4" />
               {{ t("components.collection.selector.collection_options") }}
             </NuxtLink>
@@ -73,6 +79,7 @@
             <CommandItem
               v-for="collection in filteredCollections"
               :key="collection.id"
+              class="min-h-11"
               :value="collection.id"
               @select="selectCollection(collection)"
             >

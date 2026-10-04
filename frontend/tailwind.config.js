@@ -93,11 +93,18 @@ export default {
         "sidebar-border": "hsl(var(--sidebar-border))",
         "sidebar-ring": "hsl(var(--sidebar-ring))",
       },
+      spacing: {
+        touch: "2.75rem",
+        "glass-page": "1.5rem",
+        "glass-section": "1.75rem",
+      },
       borderRadius: {
         xl: "calc(var(--radius) + 4px)",
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        glass: "1.25rem",
+        pill: "999px",
       },
       keyframes: {
         "accordion-down": {
