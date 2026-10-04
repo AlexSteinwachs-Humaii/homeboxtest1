@@ -1,7 +1,7 @@
 <template>
   <Popover>
     <PopoverTrigger as-child>
-      <Button size="sm" variant="outline" class="group/filter">
+      <Button :size="touch ? 'touch' : 'sm'" :variant="touch ? 'glass' : 'outline'" class="group/filter max-w-full">
         {{ label }} {{ len }}
         <MdiChevronDown class="transition-transform group-data-[state=open]/filter:rotate-180" />
       </Button>
@@ -51,6 +51,7 @@
 
   type Props = {
     label?: string;
+    touch?: boolean;
     options: {
       name: string;
       id: string;
@@ -69,6 +70,7 @@
   const emit = defineEmits(["update:modelValue"]);
   const props = withDefaults(defineProps<Props>(), {
     label: "",
+    touch: false,
     modelValue: () => [],
   });
 

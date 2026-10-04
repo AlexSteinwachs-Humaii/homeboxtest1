@@ -8,7 +8,12 @@
   import MdiLoading from "~icons/mdi/loading";
   import MdiMagnify from "~icons/mdi/magnify";
   import MdiDelete from "~icons/mdi/delete";
+  import MdiPlus from "~icons/mdi/plus";
   import { Button } from "@/components/ui/button";
+  import { DialogID } from "@/components/ui/dialog-provider/utils";
+  import { useDialog } from "~/components/ui/dialog-provider";
+  import { registerInventorySearch } from "~/composables/use-inventory-search";
+  import type { ViewType } from "~~/composables/use-preferences";
   import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
   import { Label } from "@/components/ui/label";
   import { Switch } from "@/components/ui/switch";
@@ -20,18 +25,22 @@
   import type { LocationQueryRaw } from "vue-router";
 
   const { t } = useI18n();
+  const { openDialog } = useDialog();
+  const { selectedCollection } = useCollections();
 
   definePageMeta({
     middleware: ["auth"],
   });
 
   useHead({
-    title: "HomeBox | " + t("global.items"),
+    title: () => "HomeBox | " + t("menu.search"),
   });
 
   const searchLocked = ref(false);
   const queryParamsInitialized = ref(false);
-  const initialSearch = ref(true);
+  type ResultPhase = "idle" | "loading" | "ready" | "empty" | "error";
+  const resultPhase = ref<ResultPhase>("idle");
+  let searchSeq = 0;
 
   const api = useUserApi();
   const loading = useMinLoader(500);
@@ -93,6 +102,23 @@
 
   const preferences = useViewPreferences();
   const pageSize = computed(() => preferences.value.itemsPerTablePage);
+  const itemView = computed(() => preferences.value.itemDisplayView);
+
+  function setItemView(view: ViewType) {
+    preferences.value.itemDisplayView = view;
+  }
+
+  function createItem() {
+    openDialog(DialogID.CreateEntity, { params: { baseType: "item" } });
+  }
+
+  const kicker = computed(() => t("items.search_kicker", { name: selectedCollection.value?.name || t("menu.home") }));
+
+  registerInventorySearch(next => {
+    query.value = next.trim();
+    page.value = 1;
+    void search();
+  });
 
   const route = useRoute();
   const router = useRouter();
@@ -123,12 +149,8 @@
       }
     }
 
-    // trigger search if no changes
-    if (!qTag && !qLoc) {
-      search();
-    }
+    await search();
 
-    loading.value = false;
     window.scroll({
       top: 0,
       left: 0,
@@ -261,6 +283,8 @@
       return;
     }
 
+    const seq = ++searchSeq;
+    resultPhase.value = "loading";
     loading.value = true;
 
     const fields = [];
@@ -321,29 +345,33 @@
       fields,
     });
 
-    function resetItems() {
-      page.value = Math.max(1, page.value - 1);
-      loading.value = false;
-      total.value = 0;
-      items.value = [];
+    if (seq !== searchSeq) {
+      return;
     }
 
-    if (error) {
-      resetItems();
+    if (error || !data) {
+      resultPhase.value = "error";
+      items.value = [];
+      loading.value = false;
       toast.error(t("items.toast.failed_search_items"));
       return;
     }
 
-    if (!data.items || data.items.length === 0) {
-      resetItems();
-      return;
-    }
-
-    total.value = data.total;
-    items.value = data.items;
-
+    total.value = data.total ?? 0;
+    items.value = data.items ?? [];
+    resultPhase.value = items.value.length === 0 ? "empty" : "ready";
     loading.value = false;
-    initialSearch.value = false;
+  }
+
+  const displayPhase = computed(() => {
+    if (loading.value || resultPhase.value === "loading" || resultPhase.value === "idle") {
+      return "loading";
+    }
+    return resultPhase.value;
+  });
+
+  function retrySearch() {
+    void search();
   }
 
   watchDebounced([page, pageSize, query, selectedTags, selectedLocations], search, { debounce: 250, maxWait: 1000 });
@@ -387,135 +415,254 @@
 </script>
 
 <template>
-  <BaseContainer>
-    <div v-if="locations && tags">
-      <div class="flex flex-wrap items-end gap-4 md:flex-nowrap">
-        <div class="w-full">
-          <Input v-model:model-value="query" :placeholder="$t('global.search')" class="h-12" />
-          <div v-if="byAssetId" class="pl-2 pt-2 text-sm">
-            <p>{{ $t("items.query_id", { id: parsedAssetId }) }}</p>
-          </div>
+  <BaseContainer class="flex min-w-0 flex-col gap-6">
+    <section class="flex min-w-0 flex-col gap-4" data-testid="inventory-search">
+      <div class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div class="min-w-0">
+          <p class="glass-kicker truncate" data-testid="search-kicker" :title="kicker">{{ kicker }}</p>
+          <h1 class="mt-1 text-3xl font-semibold tracking-tight text-foreground" data-testid="search-heading">
+            {{ $t("menu.search") }}
+          </h1>
+          <p class="mt-1 text-sm text-muted-foreground">{{ $t("items.search_subtitle") }}</p>
         </div>
-        <Button class="mb-auto h-12 w-full md:w-auto" @click.prevent="submit">
-          <MdiLoading v-if="loading" class="animate-spin" />
-          <MdiMagnify v-else />
-          {{ $t("global.search") }}
+        <Button
+          type="button"
+          variant="action"
+          size="touch"
+          class="shrink-0 self-start"
+          data-testid="search-create"
+          @click="createItem"
+        >
+          <MdiPlus />
+          {{ $t("global.create") }}
         </Button>
       </div>
 
-      <div class="flex w-full flex-wrap gap-2 py-2 md:flex-nowrap">
-        <SearchFilter v-model="selectedLocations" :label="$t('global.locations')" :options="locationFlatTree" />
-        <SearchFilter v-model="selectedTags" :label="$t('global.tags')" :options="tags" />
-        <Popover>
-          <PopoverTrigger as-child>
-            <Button size="sm" variant="outline"> {{ $t("items.options") }}</Button>
-          </PopoverTrigger>
-          <PopoverContent class="z-40 flex flex-col gap-2">
-            <Label class="flex cursor-pointer items-center">
-              <Switch v-model="includeArchived" class="ml-auto" />
-              <div class="grow" />
-              <span class="text-right"> {{ $t("items.include_archive") }} </span>
-            </Label>
-            <Label class="flex cursor-pointer items-center">
-              <Switch v-model="fieldSelector" class="ml-auto" />
-              <div class="grow" />
-              <span class="text-right"> {{ $t("items.field_selector") }} </span>
-            </Label>
-            <Label class="flex cursor-pointer items-center">
-              <Switch v-model="negateTags" class="ml-auto" />
-              <div class="grow" />
-              <span class="text-right"> {{ $t("items.negate_tags") }} </span>
-            </Label>
-            <Label class="flex cursor-pointer items-center">
-              <Switch v-model="onlyWithoutPhoto" class="ml-auto" />
-              <div class="grow" />
-              <span class="text-right"> {{ $t("items.only_without_photo") }} </span>
-            </Label>
-            <Label class="flex cursor-pointer items-center">
-              <Switch v-model="onlyWithPhoto" class="ml-auto" />
-              <div class="grow" />
-              <span class="text-right"> {{ $t("items.only_with_photo") }} </span>
-            </Label>
-            <Label class="flex cursor-pointer flex-col gap-2">
-              <span class="text-right">
-                <span class="text-right"> {{ $t("items.order_by") }} </span>
-              </span>
-
-              <Select v-model="orderBy">
-                <SelectTrigger>
-                  <SelectValue :placeholder="$t('items.order_by')" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="name"> {{ $t("items.name") }} </SelectItem>
-                  <SelectItem value="createdAt"> {{ $t("items.created_at") }} </SelectItem>
-                  <SelectItem value="updatedAt"> {{ $t("items.updated_at") }} </SelectItem>
-                </SelectContent>
-              </Select>
-            </Label>
-            <Separator />
-            <Button @click="reset"> {{ $t("items.reset_search") }} </Button>
-          </PopoverContent>
-        </Popover>
-        <div class="grow" />
-        <Popover>
-          <PopoverTrigger as-child>
-            <Button size="sm" variant="outline"> {{ $t("items.tips") }}</Button>
-          </PopoverTrigger>
-          <PopoverContent class="z-40 w-[325px]" align="end">
-            <p class="text-base">{{ $t("items.tips_sub") }}</p>
-            <ul class="mt-1 list-disc pl-6 text-sm">
-              <li>
-                {{ $t("items.tip_1") }}
-              </li>
-              <li>
-                {{ $t("items.tip_2") }}
-              </li>
-              <li>
-                {{ $t("items.tip_3") }}
-              </li>
-            </ul>
-          </PopoverContent>
-        </Popover>
-      </div>
-      <div v-if="fieldSelector" class="flex flex-col gap-2 pb-2">
-        <p>{{ $t("items.custom_fields") }}</p>
-        <div v-for="(f, idx) in fieldTuples" :key="idx" class="flex flex-wrap gap-2">
-          <div class="flex w-full flex-col gap-1 md:w-auto md:grow">
-            <Label> {{ $t("items.field") }} </Label>
-            <Select v-model="fieldTuples[idx]![0]" @update:model-value="fetchValues(f[0])">
-              <SelectTrigger>
-                <SelectValue :placeholder="$t('items.select_field')" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="field in allFields" :key="field" :value="field"> {{ field }} </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div class="flex w-full flex-col gap-1 md:w-auto md:grow">
-            <Label> {{ $t("items.field_value") }} </Label>
-            <Select v-model="fieldTuples[idx]![1]">
-              <SelectTrigger>
-                <SelectValue :placeholder="$t('items.select_value')" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="value in fieldValuesCache[f[0]]" :key="value" :value="value">
-                  {{ value }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Button variant="destructive" type="button" size="icon" class="my-auto" @click="fieldTuples.splice(idx, 1)">
-            <MdiDelete />
+      <form class="flex min-w-0 flex-col gap-2" role="search" @submit.prevent="submit">
+        <Label for="inventory-query">{{ $t("items.search_query_label") }}</Label>
+        <div class="flex min-w-0 items-center gap-2">
+          <Input
+            id="inventory-query"
+            v-model:model-value="query"
+            class="min-w-0 flex-1 rounded-full"
+            data-testid="search-query"
+            name="inventoryQuery"
+            type="search"
+            autocomplete="off"
+            :placeholder="$t('items.search_query_placeholder')"
+            :aria-describedby="byAssetId ? 'search-asset-hint' : undefined"
+          />
+          <Button
+            type="submit"
+            variant="glass"
+            size="touch-icon"
+            class="shrink-0"
+            data-testid="search-submit"
+            :aria-label="$t('global.search')"
+          >
+            <MdiLoading v-if="loading" class="animate-spin" />
+            <MdiMagnify v-else />
           </Button>
         </div>
-        <Button type="button" size="sm" class="mt-2" @click="() => fieldTuples.push(['', ''])">
-          {{ $t("items.add") }}
+        <p v-if="byAssetId" id="search-asset-hint" class="text-sm text-muted-foreground">
+          {{ $t("items.query_id", { id: parsedAssetId }) }}
+        </p>
+      </form>
+
+      <div v-if="locations && tags" class="flex min-w-0 flex-col gap-4">
+        <div class="flex w-full min-w-0 flex-wrap items-center gap-2">
+          <SearchFilter v-model="selectedLocations" touch :label="$t('global.locations')" :options="locationFlatTree" />
+          <SearchFilter v-model="selectedTags" touch :label="$t('global.tags')" :options="tags" />
+          <Popover>
+            <PopoverTrigger as-child>
+              <Button type="button" size="touch" variant="glass" data-testid="search-options">
+                {{ $t("items.options") }}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent class="z-40 flex max-w-[calc(100vw-2rem)] flex-col gap-2">
+              <Label class="flex cursor-pointer items-center">
+                <Switch v-model="includeArchived" class="ml-auto" />
+                <div class="grow" />
+                <span class="text-right"> {{ $t("items.include_archive") }} </span>
+              </Label>
+              <Label class="flex cursor-pointer items-center">
+                <Switch v-model="fieldSelector" class="ml-auto" />
+                <div class="grow" />
+                <span class="text-right"> {{ $t("items.field_selector") }} </span>
+              </Label>
+              <Label class="flex cursor-pointer items-center">
+                <Switch v-model="negateTags" class="ml-auto" />
+                <div class="grow" />
+                <span class="text-right"> {{ $t("items.negate_tags") }} </span>
+              </Label>
+              <Label class="flex cursor-pointer items-center">
+                <Switch v-model="onlyWithoutPhoto" class="ml-auto" />
+                <div class="grow" />
+                <span class="text-right"> {{ $t("items.only_without_photo") }} </span>
+              </Label>
+              <Label class="flex cursor-pointer items-center">
+                <Switch v-model="onlyWithPhoto" class="ml-auto" />
+                <div class="grow" />
+                <span class="text-right"> {{ $t("items.only_with_photo") }} </span>
+              </Label>
+              <Label class="flex cursor-pointer flex-col gap-2">
+                <span class="text-right">
+                  <span class="text-right"> {{ $t("items.order_by") }} </span>
+                </span>
+
+                <Select v-model="orderBy">
+                  <SelectTrigger>
+                    <SelectValue :placeholder="$t('items.order_by')" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name"> {{ $t("items.name") }} </SelectItem>
+                    <SelectItem value="createdAt"> {{ $t("items.created_at") }} </SelectItem>
+                    <SelectItem value="updatedAt"> {{ $t("items.updated_at") }} </SelectItem>
+                  </SelectContent>
+                </Select>
+              </Label>
+              <Separator />
+              <Button type="button" class="glass-focus min-h-11" @click="reset">
+                {{ $t("items.reset_search") }}
+              </Button>
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger as-child>
+              <Button type="button" size="touch" variant="glass" class="sm:ml-auto" data-testid="search-tips">
+                {{ $t("items.tips") }}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent class="z-40 w-[min(325px,calc(100vw-2rem))]" align="end">
+              <p class="text-base">{{ $t("items.tips_sub") }}</p>
+              <ul class="mt-1 list-disc pl-6 text-sm">
+                <li>
+                  {{ $t("items.tip_1") }}
+                </li>
+                <li>
+                  {{ $t("items.tip_2") }}
+                </li>
+                <li>
+                  {{ $t("items.tip_3") }}
+                </li>
+              </ul>
+            </PopoverContent>
+          </Popover>
+        </div>
+        <div v-if="fieldSelector" class="flex flex-col gap-2 pb-2">
+          <p>{{ $t("items.custom_fields") }}</p>
+          <div v-for="(f, idx) in fieldTuples" :key="idx" class="flex flex-wrap gap-2">
+            <div class="flex w-full flex-col gap-1 md:w-auto md:grow">
+              <Label> {{ $t("items.field") }} </Label>
+              <Select v-model="fieldTuples[idx]![0]" @update:model-value="fetchValues(f[0])">
+                <SelectTrigger>
+                  <SelectValue :placeholder="$t('items.select_field')" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="field in allFields" :key="field" :value="field"> {{ field }} </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div class="flex w-full flex-col gap-1 md:w-auto md:grow">
+              <Label> {{ $t("items.field_value") }} </Label>
+              <Select v-model="fieldTuples[idx]![1]">
+                <SelectTrigger>
+                  <SelectValue :placeholder="$t('items.select_value')" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="value in fieldValuesCache[f[0]]" :key="value" :value="value">
+                    {{ value }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button variant="destructive" type="button" size="icon" class="my-auto" @click="fieldTuples.splice(idx, 1)">
+              <MdiDelete />
+            </Button>
+          </div>
+          <Button type="button" size="sm" class="glass-focus mt-2 min-h-11" @click="() => fieldTuples.push(['', ''])">
+            {{ $t("items.add") }}
+          </Button>
+        </div>
+      </div>
+    </section>
+
+    <div class="flex min-w-0 flex-wrap items-center justify-between gap-3">
+      <p
+        class="min-w-0 text-lg font-semibold text-foreground"
+        role="status"
+        aria-live="polite"
+        data-testid="search-status"
+      >
+        <template v-if="displayPhase === 'loading'">{{ $t("items.search_loading") }}</template>
+        <template v-else-if="displayPhase !== 'error'">{{ $t("items.search_count", { count: total }) }}</template>
+      </p>
+      <div
+        class="glass-tabs ml-auto shrink-0"
+        role="group"
+        :aria-label="$t('items.search_view')"
+        data-testid="search-view"
+      >
+        <Button
+          type="button"
+          size="touch"
+          data-testid="search-view-card"
+          :variant="itemView === 'card' ? 'action' : 'glass'"
+          :aria-pressed="itemView === 'card'"
+          @click="setItemView('card')"
+        >
+          {{ $t("components.item.view.selectable.card") }}
+        </Button>
+        <Button
+          type="button"
+          size="touch"
+          data-testid="search-view-table"
+          :variant="itemView === 'table' ? 'action' : 'glass'"
+          :aria-pressed="itemView === 'table'"
+          @click="setItemView('table')"
+        >
+          {{ $t("components.item.view.selectable.table") }}
         </Button>
       </div>
     </div>
 
-    <section>
+    <div
+      v-if="displayPhase === 'error'"
+      class="flex min-w-0 flex-col items-start gap-3"
+      role="alert"
+      data-testid="search-error"
+    >
+      <p class="text-sm text-foreground">{{ $t("items.search_error") }}</p>
+      <Button
+        type="button"
+        variant="outline"
+        size="touch"
+        class="glass-focus"
+        data-testid="search-retry"
+        @click="retrySearch"
+      >
+        {{ $t("items.search_retry") }}
+      </Button>
+    </div>
+    <p
+      v-else-if="displayPhase === 'empty'"
+      class="text-sm text-muted-foreground"
+      role="status"
+      data-testid="search-empty"
+    >
+      {{ $t("items.no_results") }}
+    </p>
+
+    <section
+      v-if="displayPhase !== 'error'"
+      class="min-w-0"
+      data-testid="search-results"
+      :aria-busy="displayPhase === 'loading'"
+      :data-phase="displayPhase"
+    >
       <ItemViewSelectable
+        presentation="search"
+        :view="itemView"
         :items="items"
         :location-flat-tree="locationFlatTree"
         :pagination="pagination"

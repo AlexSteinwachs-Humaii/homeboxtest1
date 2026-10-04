@@ -19,6 +19,8 @@
     locationFlatTree?: FlatTreeItem[];
     pagination?: Pagination;
     disableSort?: boolean;
+    /** Search owns heading, count and view controls. Other lists keep this header. */
+    presentation?: "default" | "search";
   }>();
 
   const emit = defineEmits<{
@@ -56,6 +58,7 @@
     <ItemChangeDetails />
 
     <BaseSectionHeader
+      v-if="presentation !== 'search'"
       class="flex flex-wrap items-center justify-between gap-2"
       :class="{ 'mb-2 mt-4': !externalPagination }"
     >
@@ -91,8 +94,17 @@
         </div>
       </template>
     </BaseSectionHeader>
+    <div
+      v-else
+      id="selectable-subtitle"
+      class="mb-3 flex min-h-11 min-w-0 flex-wrap items-center gap-2"
+      :class="{ hidden: !preferences.quickActions.enabled }"
+    />
 
-    <p v-if="externalPagination && pagination!.totalSize > 0" class="mb-4 flex items-center text-base font-medium">
+    <p
+      v-if="presentation !== 'search' && externalPagination && pagination!.totalSize > 0"
+      class="mb-4 flex items-center text-base font-medium"
+    >
       {{ $t("items.results", { total: pagination!.totalSize }) }}
       <span class="ml-auto text-base">
         {{
@@ -106,6 +118,7 @@
 
     <DataTable
       :view="itemView"
+      :presentation="presentation"
       :columns="preferences.quickActions.enabled ? columns : columns.filter(c => c.enableHiding !== false)"
       :data="items"
       :location-flat-tree="locationFlatTree"

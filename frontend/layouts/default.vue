@@ -286,6 +286,7 @@
   import CollectionJoinModal from "~/components/Collection/JoinModal.vue";
   import CollectionInviteCreateModal from "~/components/Collection/InviteCreateModal.vue";
   import { SHELL_NAV, inventorySearchHref, isProfileActive, isShellNavActive, type ShellNavId } from "~/lib/shell-nav";
+  import { submitMountedInventorySearch } from "~/composables/use-inventory-search";
 
   const { t, locale } = useI18n();
   const authCtx = useAuthContext();
@@ -316,7 +317,11 @@
   const search = ref("");
 
   const submitInventorySearch = () => {
-    navigateTo(inventorySearchHref(search.value));
+    const submitted = search.value;
+    // Search owns the live query while it is mounted, so filters stay on the route.
+    if (!submitMountedInventorySearch(submitted)) {
+      navigateTo(inventorySearchHref(submitted));
+    }
     search.value = "";
     if (document.activeElement && "blur" in document.activeElement) {
       (document.activeElement as HTMLElement).blur();

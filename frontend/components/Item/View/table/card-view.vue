@@ -11,6 +11,7 @@
   const props = defineProps<{
     table: TableType<EntitySummary>;
     locationFlatTree?: FlatTreeItem[];
+    presentation?: "default" | "search";
   }>();
 
   defineEmits<{
@@ -50,7 +51,10 @@
       </span>
     </div>
   </Teleport>
-  <div v-if="table.getRowModel().rows?.length === 0" class="flex flex-col items-center gap-2">
+  <div
+    v-if="presentation !== 'search' && table.getRowModel().rows?.length === 0"
+    class="flex flex-col items-center gap-2"
+  >
     <MdiSelectSearch class="size-10" />
     <p>{{ $t("items.no_results") }}</p>
   </div>
