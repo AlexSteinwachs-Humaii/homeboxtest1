@@ -128,6 +128,13 @@
     { immediate: true }
   );
 
+  // The selector that normally loads collections lives in the sidebar. Below
+  // 768px that sidebar is not mounted until the drawer opens, so administration
+  // has to load the selected collection itself.
+  onMounted(() => {
+    void reloadCollections();
+  });
+
   const handleLeaveCollection = async () => {
     if (!selectedCollection.value) return;
 
