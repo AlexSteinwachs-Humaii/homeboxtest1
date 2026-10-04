@@ -1060,9 +1060,13 @@
   font-weight: 700;
 }
 
+/*
+ * Shell header contract. Item and location edit sticky actions offset by these.
+ * Both are 4rem so the single-row Glass header does not cover Save on any breakpoint.
+ */
 :root {
   --header-height: 4rem;
-  --header-height-mobile: 7rem;
+  --header-height-mobile: 4rem;
 }
 
 /* Non-scoped styles for regular text */

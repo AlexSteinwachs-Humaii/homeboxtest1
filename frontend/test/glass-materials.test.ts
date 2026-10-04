@@ -145,7 +145,7 @@ describe("glass v5 materials", () => {
     expect(read("components/ui/card/Card.vue")).toContain("glass-panel");
     expect(read("components/ui/input/Input.vue")).toContain("glass-field");
     expect(read("components/ui/select/SelectTrigger.vue")).toContain("glass-field");
-    expect(read("layouts/default.vue")).toContain("aria-label=\"$t('menu.scanner')\"");
+    expect(read("layouts/default.vue")).toContain("aria-label=\"$t('menu.scan')\"");
     expect(read("layouts/default.vue")).toContain("aria-label=\"$t('global.search')\"");
   });
 

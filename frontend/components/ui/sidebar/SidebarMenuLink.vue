@@ -6,12 +6,13 @@
 
   const props = defineProps<{
     href: string;
+    isActive?: boolean;
   }>();
 </script>
 
 <template>
-  <SidebarMenuButton as-child>
-    <NuxtLink :to="props.href" @click="setOpenMobile(false)">
+  <SidebarMenuButton as-child :is-active="props.isActive">
+    <NuxtLink :to="props.href" :aria-current="props.isActive ? 'page' : undefined" @click="setOpenMobile(false)">
       <slot />
     </NuxtLink>
   </SidebarMenuButton>

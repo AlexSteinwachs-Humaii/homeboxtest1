@@ -16,16 +16,20 @@
     <CollectionCreateModal />
     <CollectionJoinModal />
     <CollectionInviteCreateModal />
+    <!--
+      displayLegacyHeader is still stored from Profile, but it no longer swaps in
+      the decorative header or hides search/Scan. Either value keeps this shell.
+    -->
     <SidebarProvider class="glass-shell" :default-open="sidebarState">
-      <Sidebar collapsible="icon">
-        <SidebarHeader class="items-center">
-          <SidebarGroupLabel class="text-base group-data-[collapsible=icon]:hidden">{{
-            $t("global.welcome", { username: username })
-          }}</SidebarGroupLabel>
-          <NuxtLink class="glass-focus group-data-[collapsible=icon]:hidden" to="/home" :aria-label="$t('menu.home')">
-            <div class="flex size-24 items-center justify-center rounded-full bg-background-accent p-4">
-              <AppLogo />
-            </div>
+      <Sidebar variant="floating" collapsible="icon">
+        <SidebarHeader class="shrink-0 gap-3">
+          <NuxtLink
+            class="glass-brand glass-focus flex min-h-11 items-center gap-2 rounded-full px-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+            to="/home"
+            :aria-label="$t('menu.home')"
+          >
+            <AppLogo class="size-8 shrink-0" />
+            <AppHeaderText class="h-5 w-auto group-data-[collapsible=icon]:hidden" />
           </NuxtLink>
 
           <CollectionSelector />
@@ -75,95 +79,67 @@
         </SidebarHeader>
 
         <SidebarContent>
-          <SidebarGroup>
+          <SidebarGroup v-for="group in navGroups" :key="group.id">
+            <SidebarGroupLabel class="glass-kicker h-auto">{{ group.label }}</SidebarGroupLabel>
             <SidebarMenu>
-              <template v-for="n in nav" :key="n.id">
-                <SidebarMenuItem v-if="!n.collapsible" :key="n.id">
-                  <SidebarMenuLink
-                    :href="n.to"
-                    :class="{
-                      'bg-accent text-accent-foreground': n.active?.value,
-                      'text-nowrap': typeof locale === 'string' && locale.startsWith('zh-'),
-                    }"
-                    :tooltip="n.name.value"
-                  >
-                    <component :is="n.icon" />
-                    <span>{{ n.name.value }}</span>
-                  </SidebarMenuLink>
-                </SidebarMenuItem>
-
-                <Collapsible v-else default-open class="group/collapsible">
-                  <SidebarMenuItem>
-                    <SidebarMenuItem class="flex gap-1">
-                      <SidebarMenuLink
-                        :href="n.to"
-                        :class="{
-                          'bg-accent text-accent-foreground': n.active?.value,
-                          'text-nowrap': typeof locale === 'string' && locale.startsWith('zh-'),
-                        }"
-                        :tooltip="n.name.value"
-                      >
-                        <component :is="n.icon" />
-                        <span>{{ n.name.value }}</span>
-                      </SidebarMenuLink>
-                      <CollapsibleTrigger as-child>
-                        <SidebarMenuButton class="flex size-12 items-center justify-center">
-                          <MdiChevronRight
-                            class="transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
-                          />
-                        </SidebarMenuButton>
-                      </CollapsibleTrigger>
-                    </SidebarMenuItem>
-                    <CollapsibleContent>
-                      <SidebarMenuSub>
-                        <SidebarMenuSubItem v-for="c in n.collapsible" :key="c.id">
-                          <SidebarMenuLink
-                            :href="c.to"
-                            :class="{
-                              'bg-accent text-accent-foreground': c.active?.value,
-                              'text-nowrap': typeof locale === 'string' && locale.startsWith('zh-'),
-                              'min-h-11': true,
-                            }"
-                            :tooltip="c.name.value"
-                          >
-                            <span>{{ c.name.value }}</span>
-                          </SidebarMenuLink>
-                        </SidebarMenuSubItem>
-                      </SidebarMenuSub>
-                    </CollapsibleContent>
-                  </SidebarMenuItem>
-                </Collapsible>
-              </template>
-
-              <!-- makes scanner accessible easily if using legacy header -->
-              <SidebarMenuItem v-if="preferences.displayLegacyHeader">
-                <SidebarMenuButton
+              <SidebarMenuItem v-for="item in group.items" :key="item.id">
+                <SidebarMenuLink
+                  :href="item.to"
+                  :is-active="item.active"
+                  :tooltip="item.name"
                   :class="{
                     'text-nowrap': typeof locale === 'string' && locale.startsWith('zh-'),
                   }"
-                  :tooltip="$t('menu.scanner')"
-                  @click.prevent="openDialog(DialogID.Scanner)"
                 >
-                  <MdiQrcodeScan />
-                  <span>{{ $t("menu.scanner") }}</span>
-                </SidebarMenuButton>
+                  <component :is="item.icon" />
+                  <span>{{ item.name }}</span>
+                  <MdiChevronRight
+                    v-if="item.id === 'collection'"
+                    class="ml-auto size-4 opacity-70 group-data-[collapsible=icon]:hidden"
+                    aria-hidden="true"
+                  />
+                </SidebarMenuLink>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroup>
         </SidebarContent>
 
-        <SidebarFooter>
-          <SidebarMenuButton
-            class="glass-focus flex min-h-11 justify-center group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:bg-destructive group-data-[collapsible=icon]:text-destructive-foreground group-data-[collapsible=icon]:shadow-sm group-data-[collapsible=icon]:hover:bg-destructive/90"
-            :tooltip="$t('global.sign_out')"
-            data-testid="logout-button"
-            @click="logout"
-          >
-            <MdiLogout />
-            <span>
-              {{ $t("global.sign_out") }}
-            </span>
-          </SidebarMenuButton>
+        <SidebarFooter class="shrink-0">
+          <SidebarSeparator />
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuLink
+                class="!h-auto min-h-11 py-1.5 group-data-[collapsible=icon]:!size-11"
+                href="/profile"
+                :is-active="profileActive"
+                :tooltip="profileLabel"
+              >
+                <span
+                  class="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground"
+                  aria-hidden="true"
+                >
+                  {{ profileInitial }}
+                </span>
+                <span class="flex min-w-0 flex-col leading-tight">
+                  <span class="truncate text-sm font-semibold">{{ username }}</span>
+                  <span class="truncate text-xs text-muted-foreground">{{ profileLabel }}</span>
+                </span>
+              </SidebarMenuLink>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                class="glass-focus flex min-h-11 justify-start"
+                :tooltip="$t('global.sign_out')"
+                data-testid="logout-button"
+                @click="logout"
+              >
+                <MdiLogout />
+                <span>
+                  {{ $t("global.sign_out") }}
+                </span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
         </SidebarFooter>
 
         <SidebarRail />
@@ -171,54 +147,55 @@
       <SidebarInset
         :class="
           theme === 'homebox'
-            ? 'min-h-dvh max-w-full overflow-hidden bg-transparent'
-            : 'min-h-dvh max-w-full overflow-hidden bg-background-accent'
+            ? 'min-h-dvh min-w-0 max-w-full bg-transparent'
+            : 'min-h-dvh min-w-0 max-w-full bg-background-accent'
         "
       >
-        <div class="relative flex h-full flex-col justify-center">
-          <div v-if="preferences.displayLegacyHeader">
-            <AppHeaderDecor class="-mt-10 hidden lg:block" />
-            <SidebarTrigger class="absolute left-2 top-2 hidden lg:flex" variant="default" />
-          </div>
-          <!-- IMPORTANT: if you change the height of this div, alter the top value in the item edit page-->
-          <div
-            class="glass-nav sticky top-0 z-20 flex h-[var(--header-height-mobile)] translate-y-[-0.5px] flex-col p-2 sm:h-[var(--header-height)] sm:flex-row"
-            :class="{
-              'lg:hidden': preferences.displayLegacyHeader,
-            }"
+        <div class="relative flex h-full min-w-0 flex-col justify-center">
+          <!-- Height is --header-height (4rem). Edit sticky bars offset by the same variables. -->
+          <header
+            class="glass-nav sticky top-0 z-20 flex h-16 min-h-16 items-center gap-2 px-3"
+            data-testid="shell-header"
           >
-            <div class="flex h-1/2 items-center gap-2 sm:h-auto">
-              <SidebarTrigger variant="default" />
-              <NuxtLink
-                class="glass-brand glass-focus flex min-h-11 min-w-11 items-center"
-                to="/home"
-                :aria-label="$t('menu.home')"
-              >
-                <AppHeaderText class="h-6" />
-              </NuxtLink>
-            </div>
-            <div class="sm:grow" />
-            <div class="flex h-1/2 grow items-center justify-end gap-2 sm:h-auto">
+            <SidebarTrigger variant="default" />
+            <NuxtLink
+              class="glass-brand glass-focus flex size-11 min-h-11 min-w-11 items-center justify-center max-[359px]:hidden md:hidden"
+              to="/home"
+              :aria-label="$t('menu.home')"
+            >
+              <AppLogo class="size-8" />
+            </NuxtLink>
+            <form
+              class="flex min-w-0 flex-1 items-center gap-2"
+              role="search"
+              data-testid="shell-search"
+              @submit.prevent="submitInventorySearch"
+            >
               <Input
                 v-model:model-value="search"
-                class="glass-search h-11 min-h-11 grow rounded-full sm:max-w-sm"
+                class="glass-search h-11 min-h-11 min-w-0 flex-1 rounded-full"
                 :placeholder="$t('global.search')"
                 :aria-label="$t('global.search')"
                 type="search"
-                @keyup.enter="triggerSearch"
+                name="q"
               />
-              <div>
-                <Button variant="glass" size="touch-icon" :aria-label="$t('menu.search')" @click="triggerSearch">
-                  <MdiMagnify />
-                </Button>
-              </div>
-              <div>
-                <Button variant="glass" size="touch-icon" :aria-label="$t('menu.scanner')" @click="openScanner">
-                  <MdiQrcodeScan />
-                </Button>
-              </div>
-            </div>
-          </div>
+              <Button type="submit" variant="glass" size="touch-icon" :aria-label="$t('menu.search')">
+                <MdiMagnify />
+              </Button>
+            </form>
+            <Button
+              type="button"
+              variant="glass"
+              size="touch"
+              class="shrink-0 max-sm:w-11 max-sm:px-0"
+              data-testid="shell-scan"
+              :aria-label="$t('menu.scan')"
+              @click="openScanner"
+            >
+              <MdiQrcodeScan />
+              <span class="max-sm:sr-only">{{ $t("menu.scan") }}</span>
+            </Button>
+          </header>
 
           <slot />
           <div class="grow" />
@@ -257,7 +234,6 @@
   import MdiTagMultiple from "~icons/mdi/tag-multiple";
   import MdiMagnify from "~icons/mdi/magnify";
   import MdiQrcodeScan from "~icons/mdi/qrcode-scan";
-  import MdiAccount from "~icons/mdi/account";
   import MdiCog from "~icons/mdi/cog";
   import MdiWrench from "~icons/mdi/wrench";
   import MdiPlus from "~icons/mdi/plus";
@@ -274,13 +250,12 @@
     SidebarHeader,
     SidebarInset,
     SidebarMenu,
-    SidebarMenuSub,
-    SidebarMenuSubItem,
     SidebarMenuButton,
     SidebarMenuItem,
     SidebarMenuLink,
     SidebarProvider,
     SidebarRail,
+    SidebarSeparator,
     SidebarTrigger,
   } from "@/components/ui/sidebar";
   import {
@@ -289,7 +264,6 @@
     DropdownMenuItem,
     DropdownMenuTrigger,
   } from "@/components/ui/dropdown-menu";
-  import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
   import { Shortcut } from "~/components/ui/shortcut";
   import { useDialog } from "~/components/ui/dialog-provider";
   import { Input } from "~/components/ui/input";
@@ -305,19 +279,24 @@
   import AppQuickMenuModal from "~/components/App/QuickMenuModal.vue";
   import AppScannerModal from "~/components/App/ScannerModal.vue";
   import AppLogo from "~/components/App/Logo.vue";
-  import AppHeaderDecor from "~/components/App/HeaderDecor.vue";
   import AppHeaderText from "~/components/App/HeaderText.vue";
   import CollectionSelector from "~/components/Collection/Selector.vue";
   import CollectionCreateModal from "~/components/Collection/CreateModal.vue";
   import CollectionJoinModal from "~/components/Collection/JoinModal.vue";
   import CollectionInviteCreateModal from "~/components/Collection/InviteCreateModal.vue";
+  import { SHELL_NAV, inventorySearchHref, isProfileActive, isShellNavActive, type ShellNavId } from "~/lib/shell-nav";
 
   const { t, locale } = useI18n();
+  const authCtx = useAuthContext();
+  const route = useRoute();
+  const router = useRouter();
   const username = computed(() => authCtx.user?.name || "User");
+  const profileInitial = computed(() => (username.value.trim()[0] || "?").toUpperCase());
+  const profileLabel = computed(() => t("menu.profile_preferences"));
+  const profileActive = computed(() => isProfileActive(route.path));
 
   const { openDialog } = useDialog();
 
-  const preferences = useViewPreferences();
   const { theme } = useTheme();
 
   // get sidebar state from cookies
@@ -335,14 +314,11 @@
 
   const search = ref("");
 
-  const triggerSearch = () => {
-    if (search.value) {
-      navigateTo(`/items?q=${encodeURIComponent(search.value)}`);
-      search.value = "";
-      // remove focus from input
-      if (document.activeElement && "blur" in document.activeElement) {
-        (document.activeElement as HTMLElement).blur();
-      }
+  const submitInventorySearch = () => {
+    navigateTo(inventorySearchHref(search.value));
+    search.value = "";
+    if (document.activeElement && "blur" in document.activeElement) {
+      (document.activeElement as HTMLElement).blur();
     }
   };
 
@@ -394,117 +370,44 @@
     },
   ];
 
-  const route = useRoute();
-  const router = useRouter();
+  const icons: Record<ShellNavId, Component> = {
+    home: MdiHome,
+    search: MdiMagnify,
+    locations: MdiFileTree,
+    tags: MdiTagMultiple,
+    templates: MdiFileDocumentMultiple,
+    maintenance: MdiWrench,
+    collection: MdiCog,
+  };
 
-  const nav: {
-    icon: Component;
-    active: ComputedRef<boolean>;
-    id: number;
-    name: ComputedRef<string>;
-    to: string;
-    collapsible?: {
-      active: ComputedRef<boolean>;
-      id: number;
-      name: ComputedRef<string>;
-      to: string;
-    }[];
-  }[] = [
+  function navLabel(id: ShellNavId) {
+    if (id === "tags") {
+      return t("global.tags");
+    }
+    return t(`menu.${id}`);
+  }
+
+  const navItems = computed(() =>
+    SHELL_NAV.map(item => ({
+      ...item,
+      icon: icons[item.id],
+      name: navLabel(item.id),
+      active: isShellNavActive(item.id, route.path),
+    }))
+  );
+
+  const navGroups = computed(() => [
     {
-      icon: MdiHome,
-      active: computed(() => route.path === "/home"),
-      id: 0,
-      name: computed(() => t("menu.home")),
-      to: "/home",
+      id: "inventory",
+      label: t("menu.group_inventory"),
+      items: navItems.value.filter(item => item.group === "inventory"),
     },
     {
-      icon: MdiFileTree,
-      id: 1,
-      active: computed(() => route.path === "/locations"),
-      name: computed(() => t("menu.locations")),
-      to: "/locations",
+      id: "manage",
+      label: t("menu.group_manage"),
+      items: navItems.value.filter(item => item.group === "manage"),
     },
-    {
-      icon: MdiTagMultiple,
-      id: 2,
-      active: computed(() => route.path === "/tags"),
-      name: computed(() => t("global.tags")),
-      to: "/tags",
-    },
-    {
-      icon: MdiMagnify,
-      id: 3,
-      active: computed(() => route.path === "/items"),
-      name: computed(() => t("menu.search")),
-      to: "/items",
-    },
-    {
-      icon: MdiFileDocumentMultiple,
-      id: 4,
-      active: computed(() => route.path === "/templates"),
-      name: computed(() => t("menu.templates")),
-      to: "/templates",
-    },
-    {
-      icon: MdiWrench,
-      id: 5,
-      active: computed(() => route.path === "/maintenance"),
-      name: computed(() => t("menu.maintenance")),
-      to: "/maintenance",
-    },
-    {
-      icon: MdiAccount,
-      id: 6,
-      active: computed(() => route.path === "/profile"),
-      name: computed(() => t("menu.profile")),
-      to: "/profile",
-    },
-    {
-      icon: MdiCog,
-      id: 7,
-      active: computed(() => route.path.includes("/collection")),
-      name: computed(() => t("menu.collection")),
-      to: "/collection/members",
-      collapsible: [
-        {
-          id: 61,
-          active: computed(() => route.path === "/collection/members"),
-          name: computed(() => t("collection.tabs.members")),
-          to: "/collection/members",
-        },
-        {
-          id: 62,
-          active: computed(() => route.path === "/collection/invites"),
-          name: computed(() => t("collection.tabs.invites")),
-          to: "/collection/invites",
-        },
-        {
-          id: 63,
-          active: computed(() => route.path === "/collection/notifiers"),
-          name: computed(() => t("collection.tabs.notifiers")),
-          to: "/collection/notifiers",
-        },
-        {
-          id: 64,
-          active: computed(() => route.path === "/collection/settings"),
-          name: computed(() => t("collection.tabs.settings")),
-          to: "/collection/settings",
-        },
-        {
-          id: 65,
-          active: computed(() => route.path === "/collection/entity-types"),
-          name: computed(() => t("collection.tabs.entity_types")),
-          to: "/collection/entity-types",
-        },
-        {
-          id: 66,
-          active: computed(() => route.path === "/collection/tools"),
-          name: computed(() => t("collection.tabs.tools")),
-          to: "/collection/tools",
-        },
-      ],
-    },
-  ];
+  ]);
 
   const quickMenuActions = reactive([
     ...dropdown.map(v => ({
@@ -514,11 +417,16 @@
       id: v.id,
       type: "create" as const,
     })),
-    ...nav.map(v => ({
-      text: computed(() => v.name.value),
-      href: v.to,
+    ...SHELL_NAV.map(item => ({
+      text: computed(() => navLabel(item.id)),
+      href: item.to,
       type: "navigate" as const,
     })),
+    {
+      text: computed(() => t("menu.profile")),
+      href: "/profile",
+      type: "navigate" as const,
+    },
   ]);
 
   const tagStore = useTagStore();
@@ -562,7 +470,6 @@
     locationStore.refreshTree();
   });
 
-  const authCtx = useAuthContext();
   const api = useUserApi();
 
   async function logout() {
