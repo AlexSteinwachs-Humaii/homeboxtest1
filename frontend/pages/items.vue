@@ -300,6 +300,11 @@
   }
 
   async function search() {
+    // A debounced criteria update can outlive navigation to an item. Never
+    // apply this page's query to the new route (or interrupt that navigation).
+    if (router.currentRoute.value.path.replace(/\/$/, "") !== "/items") {
+      return;
+    }
     if (searchLocked.value) {
       return;
     }

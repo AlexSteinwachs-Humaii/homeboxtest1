@@ -50,15 +50,18 @@
   const route = useRoute();
   const api = useUserApi();
 
-  const backToSearch = computed(() => {
-    // Recompute after each in-app navigation so a preserved results query is not sticky.
-    void route.fullPath;
+  const backToSearch = ref("/items");
+  function syncBackToSearch() {
     if (!import.meta.client) {
-      return "/items";
+      return;
     }
     const state = window.history.state as { back?: unknown } | null;
-    return inventoryResultsBackHref(state?.back);
-  });
+    backToSearch.value = inventoryResultsBackHref(state?.back);
+  }
+  // During page setup the router may still hold the previous entry's history
+  // state. Read it after mounting/navigation instead of caching that stale value.
+  onMounted(syncBackToSearch);
+  watch(() => route.fullPath, syncBackToSearch, { flush: "post" });
 
   const itemId = computed<string>(() => route.params.id as string);
   const preferences = useViewPreferences();
