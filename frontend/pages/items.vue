@@ -18,6 +18,12 @@
     SEARCH_COMPACT_QUERY,
     searchResultsPageSize,
   } from "~/components/Item/View/search-density";
+  import {
+    coercePage,
+    pageAfterCriteriaChange,
+    resolveSearchPage,
+    searchCriteriaKey,
+  } from "~/components/Item/View/search-pagination";
   import type { ViewType } from "~~/composables/use-preferences";
   import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
   import { Label } from "@/components/ui/label";
@@ -89,9 +95,9 @@
   const page1 = useOptionalRouteQuery("page", 1);
 
   const page = computed({
-    get: () => page1.value,
+    get: () => coercePage(page1.value),
     set: value => {
-      page1.value = value;
+      page1.value = coercePage(value);
     },
   });
 
@@ -116,13 +122,6 @@
       tablePageSize: preferences.value.itemsPerTablePage,
     })
   );
-
-  watch(pageSize, (next, previous) => {
-    if (previous === undefined || next === previous || page.value === 1) {
-      return;
-    }
-    page.value = 1;
-  });
 
   function setItemView(view: ViewType) {
     preferences.value.itemDisplayView = view;
@@ -163,9 +162,6 @@
       selectedTags.value = tags.value.filter(l => qTag.value.includes(l.id));
     }
 
-    queryParamsInitialized.value = true;
-    searchLocked.value = false;
-
     const qFields = route.query.fields as string[];
     if (qFields) {
       fieldTuples.value = qFields.map(f => f.split("=") as [string, string]);
@@ -177,6 +173,8 @@
       }
     }
 
+    queryParamsInitialized.value = true;
+    searchLocked.value = false;
     await search();
 
     window.scroll({
@@ -232,6 +230,21 @@
 
   const fieldTuples = ref<[string, string][]>([]);
   const fieldValuesCache = ref<Record<string, string[]>>({});
+  const criteriaKey = computed(() =>
+    searchCriteriaKey({
+      query: query.value,
+      locations: locIDs.value,
+      tags: tagIDs.value,
+      archived: includeArchived.value,
+      negateTags: negateTags.value,
+      onlyWithoutPhoto: onlyWithoutPhoto.value,
+      onlyWithPhoto: onlyWithPhoto.value,
+      orderBy: orderBy.value,
+      fields: fieldTuples.value.filter(pair => pair[0] && pair[1]).map(pair => `${pair[0]}=${pair[1]}`),
+      pageSize: pageSize.value,
+      view: itemView.value,
+    })
+  );
 
   const { data: allFields } = useAsyncData(async () => {
     const { data, error } = await api.items.fields.getAll();
@@ -243,45 +256,21 @@
     return data;
   });
 
-  watch(includeArchived, (newV, oldV) => {
-    if (newV !== oldV) {
-      search();
-    }
-  });
-
   watch(fieldSelector, (newV, oldV) => {
     if (newV === false && oldV === true) {
       fieldTuples.value = [];
     }
   });
 
-  watch(negateTags, (newV, oldV) => {
-    if (newV !== oldV) {
-      search();
-    }
-  });
-
-  watch(onlyWithoutPhoto, (newV, oldV) => {
+  watch(onlyWithoutPhoto, newV => {
     if (newV && onlyWithPhoto.value) {
-      // this triggers the watch on onlyWithPhoto
       onlyWithPhoto.value = false;
-    } else if (newV !== oldV) {
-      search();
     }
   });
 
-  watch(onlyWithPhoto, (newV, oldV) => {
+  watch(onlyWithPhoto, newV => {
     if (newV && onlyWithoutPhoto.value) {
-      // this triggers the watch on onlyWithoutPhoto
       onlyWithoutPhoto.value = false;
-    } else if (newV !== oldV) {
-      search();
-    }
-  });
-
-  watch(orderBy, (newV, oldV) => {
-    if (newV !== oldV) {
-      search();
     }
   });
 
@@ -316,6 +305,7 @@
     }
 
     const seq = ++searchSeq;
+    const requestedPage = coercePage(page.value);
     resultPhase.value = "loading";
     loading.value = true;
 
@@ -334,7 +324,7 @@
       onlyWithoutPhoto: onlyWithoutPhoto.value,
       onlyWithPhoto: onlyWithPhoto.value,
       orderBy: orderBy.value,
-      page: page.value,
+      page: requestedPage,
       q: query.value,
       loc: locIDs.value,
       tag: tagIDs.value,
@@ -371,7 +361,7 @@
       onlyWithoutPhoto: onlyWithoutPhoto.value,
       onlyWithPhoto: onlyWithPhoto.value,
       includeArchived: includeArchived.value,
-      page: page.value,
+      page: requestedPage,
       pageSize: pageSize.value,
       orderBy: orderBy.value,
       fields,
@@ -382,6 +372,7 @@
     }
 
     if (error || !data) {
+      // Keep the last API total and the requested page. Do not walk backwards or invent a zero total.
       resultPhase.value = "error";
       items.value = [];
       loading.value = false;
@@ -389,7 +380,18 @@
       return;
     }
 
-    total.value = data.total ?? 0;
+    const apiTotal = data.total ?? 0;
+    total.value = apiTotal;
+    const resolved = resolveSearchPage({
+      page: requestedPage,
+      pageSize: pageSize.value,
+      total: apiTotal,
+    });
+    if (resolved.clamped && resolved.page !== requestedPage) {
+      page.value = resolved.page;
+      return;
+    }
+
     items.value = data.items ?? [];
     resultPhase.value = items.value.length === 0 ? "empty" : "ready";
     loading.value = false;
@@ -406,7 +408,27 @@
     void search();
   }
 
-  watchDebounced([page, pageSize, query, selectedTags, selectedLocations], search, { debounce: 250, maxWait: 1000 });
+  watch(page, () => {
+    if (!queryParamsInitialized.value || searchLocked.value) {
+      return;
+    }
+    void search();
+  });
+
+  watchDebounced(
+    criteriaKey,
+    (next, previous) => {
+      if (!queryParamsInitialized.value || searchLocked.value || previous === undefined || next === previous) {
+        return;
+      }
+      if (page.value !== pageAfterCriteriaChange()) {
+        page.value = pageAfterCriteriaChange();
+        return;
+      }
+      void search();
+    },
+    { debounce: 250, maxWait: 1000 }
+  );
 
   async function submit() {
     // Set URL Params
@@ -698,6 +720,8 @@
         :items="items"
         :location-flat-tree="locationFlatTree"
         :pagination="pagination"
+        :lock-page-size="itemView === 'card' && compactSearch"
+        :result-phase="displayPhase"
         disable-sort
         @refresh="async () => search()"
       />

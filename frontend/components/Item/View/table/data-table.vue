@@ -25,6 +25,7 @@
   import CardView from "./card-view.vue";
   import DataTableControls from "./data-table-controls.vue";
   import type { Pagination } from "../pagination";
+  import type { SearchResultPhase } from "../search-pagination";
   import { entityRowId, pruneRowSelection, sameRowSelection } from "./row-selection";
   import Switch from "~/components/ui/switch/Switch.vue";
 
@@ -36,6 +37,9 @@
     locationFlatTree?: FlatTreeItem[];
     externalPagination?: Pagination;
     presentation?: "default" | "search";
+    /** Compact Search cards use a fixed density. Do not offer a control that writes the table preference. */
+    lockPageSize?: boolean;
+    resultPhase?: SearchResultPhase;
   }>();
 
   defineEmits<{
@@ -170,7 +174,17 @@
   };
 
   watch(() => pagination.value.pageIndex, scrollToTop);
-  watch(() => props.externalPagination?.page, scrollToTop);
+  watch(
+    () => props.externalPagination?.page,
+    (next, previous) => {
+      scrollToTop();
+      if (previous === undefined || next === previous) {
+        return;
+      }
+      rowSelection.value = {};
+      expanded.value = {};
+    }
+  );
 
   const resultRowIds = computed(() => props.data.map((row, index) => entityRowId(row, index)));
   watch(resultRowIds, ids => {
@@ -220,10 +234,13 @@
             </div>
           </div>
 
-          <div class="flex flex-col gap-2">
+          <div v-if="props.lockPageSize" class="flex flex-col gap-2" data-testid="search-page-size-locked">
+            <p class="text-sm text-muted-foreground">{{ $t("items.search_page_size_locked") }}</p>
+          </div>
+          <div v-else class="flex flex-col gap-2">
             <Label> {{ $t("components.item.view.table.rows_per_page") }} </Label>
             <Select :model-value="pagination.pageSize" @update:model-value="val => table.setPageSize(Number(val))">
-              <SelectTrigger>
+              <SelectTrigger data-testid="rows-per-page">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -243,12 +260,14 @@
       </DialogContent>
     </Dialog>
     <BaseCard v-if="props.view === 'table'">
-      <div v-if="!props.disableControls" class="border-b p-3">
+      <div v-if="!props.disableControls && props.presentation !== 'search'" class="border-b p-3">
         <DataTableControls
           :table="table"
           :pagination="pagination"
           :data-length="data.length"
           :external-pagination="externalPagination"
+          :presentation="presentation"
+          :result-phase="resultPhase"
         />
       </div>
       <div>
@@ -260,16 +279,20 @@
           :pagination="pagination"
           :data-length="data.length"
           :external-pagination="externalPagination"
+          :presentation="presentation"
+          :result-phase="resultPhase"
         />
       </div>
     </BaseCard>
     <div v-else>
-      <div v-if="!props.disableControls" class="pb-2">
+      <div v-if="!props.disableControls && props.presentation !== 'search'" class="pb-2">
         <DataTableControls
           :table="table"
           :pagination="pagination"
           :data-length="data.length"
           :external-pagination="externalPagination"
+          :presentation="presentation"
+          :result-phase="resultPhase"
         />
       </div>
       <CardView
@@ -284,6 +307,8 @@
           :pagination="pagination"
           :data-length="data.length"
           :external-pagination="externalPagination"
+          :presentation="presentation"
+          :result-phase="resultPhase"
         />
       </div>
     </div>

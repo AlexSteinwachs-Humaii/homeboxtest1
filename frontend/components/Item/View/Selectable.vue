@@ -10,6 +10,7 @@
   import { makeColumns } from "./table/columns";
   import { useI18n } from "vue-i18n";
   import type { Pagination } from "./pagination";
+  import type { SearchResultPhase } from "./search-pagination";
   import MaintenanceEditModal from "@/components/Maintenance/EditModal.vue";
   import ItemChangeDetails from "./ItemChangeDetails.vue";
 
@@ -21,6 +22,8 @@
     disableSort?: boolean;
     /** Search owns heading, count and view controls. Other lists keep this header. */
     presentation?: "default" | "search";
+    lockPageSize?: boolean;
+    resultPhase?: SearchResultPhase;
   }>();
 
   const emit = defineEmits<{
@@ -123,6 +126,8 @@
       :data="items"
       :location-flat-tree="locationFlatTree"
       :external-pagination="pagination"
+      :lock-page-size="lockPageSize"
+      :result-phase="resultPhase"
       @refresh="$emit('refresh')"
     />
   </section>
