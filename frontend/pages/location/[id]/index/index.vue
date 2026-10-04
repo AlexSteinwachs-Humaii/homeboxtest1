@@ -341,8 +341,15 @@
         </div>
       </BaseCard>
 
-      <!-- Items in this location -->
+      <!-- Items in this location. An empty list is this location, not a missing record. -->
       <section v-if="location && items">
+        <p
+          v-if="items.length === 0"
+          class="mt-4 max-w-prose text-sm text-foreground"
+          data-testid="location-items-empty"
+        >
+          {{ $t("locations.empty_items") }}
+        </p>
         <ItemViewSelectable :items="items" @refresh="refreshItemList" />
       </section>
 

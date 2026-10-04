@@ -7,12 +7,11 @@
   import { useHomeOverview } from "./statistics";
   import { formatCollectionCount, formatCollectionValue } from "./overview";
   import { presentRecentItem, RECENT_VIEW_ALL } from "./recent";
-  import { useTagStore } from "~/stores/tags";
-  import { useLocationStore } from "~~/stores/locations";
+  import { LOCATIONS_VIEW_ALL, TAGS_VIEW_ALL } from "./browse";
+  import { useHomePlaces } from "./places";
   import { Button } from "~/components/ui/button";
   import { DialogID } from "~/components/ui/dialog-provider/utils";
   import { useDialog } from "~/components/ui/dialog-provider";
-  import Subtitle from "~/components/global/Subtitle.vue";
   import ItemCard from "~/components/Item/Card.vue";
   import LocationCard from "~/components/Location/Card.vue";
   import TagChip from "~/components/Tag/Chip.vue";
@@ -31,11 +30,18 @@
     title: () => "HomeBox | " + (headingName.value || t("menu.home")),
   });
 
-  const locationStore = useLocationStore();
-  const locations = computed(() => locationStore.parentLocations);
+  const places = useHomePlaces();
+  const locationsPhase = places.locationsPhase;
+  const tagsPhase = places.tagsPhase;
+  const locationCards = places.locationCards;
+  const tagCards = places.tagCards;
 
-  const tagsStore = useTagStore();
-  const tags = computed(() => tagsStore.tags);
+  const tagsViewAllLabel = computed(() => {
+    if (tagsPhase.value === "ready") {
+      return t("home.tags_view_all", { count: tagCards.value.length });
+    }
+    return t("home.view_all");
+  });
 
   const itemTable = itemsTable(api);
   const recentPhase = itemTable.phase;
@@ -234,19 +240,117 @@
       </div>
     </section>
 
-    <section class="min-w-0">
-      <Subtitle> {{ $t("home.storage_locations") }} </Subtitle>
-      <p v-if="locations.length === 0" class="ml-2 text-sm">{{ $t("locations.no_results") }}</p>
-      <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-        <LocationCard v-for="location in locations" :key="location.id" :location="location" />
+    <section class="min-w-0" data-testid="home-locations" :aria-busy="locationsPhase === 'loading'">
+      <div class="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-2">
+        <h2 class="min-w-0 break-words text-2xl font-bold tracking-tight text-foreground">
+          {{ $t("home.storage_locations") }}
+        </h2>
+        <NuxtLink
+          :to="LOCATIONS_VIEW_ALL"
+          class="glass-touch glass-focus inline-flex shrink-0 items-center gap-1 rounded-full px-2 text-sm font-semibold text-primary outline-none"
+          data-testid="home-locations-view-all"
+        >
+          {{ $t("home.view_all") }}
+          <MdiChevronRight class="size-4" aria-hidden="true" />
+        </NuxtLink>
+      </div>
+
+      <div v-if="locationsPhase === 'loading'" data-testid="home-locations-loading" role="status">
+        <p class="text-sm text-muted-foreground">{{ $t("home.locations_loading") }}</p>
+        <div class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2" aria-hidden="true">
+          <div v-for="slot in 2" :key="slot" class="glass-panel h-16 bg-card" />
+        </div>
+      </div>
+
+      <div
+        v-else-if="locationsPhase === 'error'"
+        role="alert"
+        data-testid="home-locations-error"
+        class="flex flex-col items-start gap-3"
+      >
+        <p class="max-w-prose text-sm text-foreground">{{ $t("home.locations_error") }}</p>
+        <Button
+          type="button"
+          variant="outline"
+          size="touch"
+          data-testid="home-locations-retry"
+          @click="places.refreshLocations"
+        >
+          {{ $t("home.retry") }}
+        </Button>
+      </div>
+
+      <p
+        v-else-if="locationsPhase === 'no-collection'"
+        class="max-w-prose text-sm text-foreground"
+        data-testid="home-locations-no-collection"
+      >
+        {{ $t("home.no_collection") }}
+      </p>
+
+      <p
+        v-else-if="locationsPhase === 'empty'"
+        class="max-w-prose text-sm text-foreground"
+        data-testid="home-locations-empty"
+      >
+        {{ $t("home.locations_empty") }}
+      </p>
+
+      <div v-else class="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2" data-testid="home-locations-grid">
+        <LocationCard v-for="card in locationCards" :key="card.id" variant="overview" :location="card" :detail="card" />
       </div>
     </section>
 
-    <section class="min-w-0">
-      <Subtitle> {{ $t("home.tags") }} </Subtitle>
-      <p v-if="tags.length === 0" class="ml-2 text-sm">{{ $t("tags.no_results") }}</p>
-      <div v-else class="flex flex-wrap gap-4">
-        <TagChip v-for="tag in tags" :key="tag.id" size="lg" :tag="tag" class="shadow-md" />
+    <section class="min-w-0" data-testid="home-tags" :aria-busy="tagsPhase === 'loading'">
+      <div class="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-2">
+        <h2 class="min-w-0 break-words text-2xl font-bold tracking-tight text-foreground">{{ $t("home.tags") }}</h2>
+        <NuxtLink
+          :to="TAGS_VIEW_ALL"
+          class="glass-touch glass-focus inline-flex shrink-0 items-center gap-1 rounded-full px-2 text-sm font-semibold text-primary outline-none"
+          data-testid="home-tags-view-all"
+        >
+          {{ tagsViewAllLabel }}
+          <MdiChevronRight class="size-4" aria-hidden="true" />
+        </NuxtLink>
+      </div>
+
+      <div v-if="tagsPhase === 'loading'" data-testid="home-tags-loading" role="status">
+        <p class="text-sm text-muted-foreground">{{ $t("home.tags_loading") }}</p>
+      </div>
+
+      <div
+        v-else-if="tagsPhase === 'error'"
+        role="alert"
+        data-testid="home-tags-error"
+        class="flex flex-col items-start gap-3"
+      >
+        <p class="max-w-prose text-sm text-foreground">{{ $t("home.tags_error") }}</p>
+        <Button type="button" variant="outline" size="touch" data-testid="home-tags-retry" @click="places.refreshTags">
+          {{ $t("home.retry") }}
+        </Button>
+      </div>
+
+      <p
+        v-else-if="tagsPhase === 'no-collection'"
+        class="max-w-prose text-sm text-foreground"
+        data-testid="home-tags-no-collection"
+      >
+        {{ $t("home.no_collection") }}
+      </p>
+
+      <p v-else-if="tagsPhase === 'empty'" class="max-w-prose text-sm text-foreground" data-testid="home-tags-empty">
+        {{ $t("home.tags_empty") }}
+      </p>
+
+      <div v-else class="flex min-w-0 flex-wrap gap-3" data-testid="home-tags-list">
+        <TagChip
+          v-for="card in tagCards"
+          :key="card.id"
+          size="lg"
+          :tag="card.tag"
+          class="glass-focus min-h-11 min-w-11 max-w-full break-words px-4 shadow-none [overflow-wrap:anywhere]"
+          :data-testid="`home-tag-${card.id}`"
+        />
       </div>
     </section>
   </div>
