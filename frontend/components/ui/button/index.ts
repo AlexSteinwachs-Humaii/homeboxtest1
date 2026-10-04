@@ -14,12 +14,18 @@ export const buttonVariants = cva(
         secondary: "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
+        /* Opt-in pill primary. Does not replace compact default/sm controls. */
+        action: "glass-action glass-focus bg-primary text-primary-foreground shadow-md hover:bg-primary/90",
+        /* Opt-in luminous control for navigation and route actions, not data panels. */
+        glass: "glass-nav glass-focus text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground",
       },
       size: {
         default: "h-9 px-4 py-2",
         sm: "h-8 rounded-md px-3 text-xs",
         lg: "h-10 rounded-md px-8",
         icon: "size-9",
+        touch: "glass-touch glass-focus h-11 min-h-11 min-w-11 px-4 text-base",
+        "touch-icon": "glass-touch glass-focus size-11 min-h-11 min-w-11",
       },
     },
     defaultVariants: {

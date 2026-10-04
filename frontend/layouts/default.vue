@@ -33,7 +33,7 @@
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
               <SidebarMenuButton
-                class="flex justify-center bg-primary text-primary-foreground drop-shadow-md hover:bg-primary/90 active:bg-primary/90 active:text-primary-foreground group-data-[collapsible=icon]:justify-start"
+                class="glass-action glass-focus flex min-h-11 justify-center bg-primary text-primary-foreground drop-shadow-md hover:bg-primary/90 active:bg-primary/90 active:text-primary-foreground group-data-[collapsible=icon]:justify-start"
                 :tooltip="$t('global.create')"
                 hotkey="Shortcut: Ctrl+`"
               >
@@ -47,7 +47,7 @@
               <DropdownMenuItem
                 v-for="btn in dropdown"
                 :key="btn.id"
-                class="group cursor-pointer text-lg"
+                class="glass-focus group min-h-11 cursor-pointer text-lg"
                 @click="
                   () => {
                     if (btn.dialogId === DialogID.CreateEntity) {
@@ -122,7 +122,7 @@
                             :class="{
                               'bg-accent text-accent-foreground': c.active?.value,
                               'text-nowrap': typeof locale === 'string' && locale.startsWith('zh-'),
-                              'h-min py-0': true,
+                              'min-h-11': true,
                             }"
                             :tooltip="c.name.value"
                           >
@@ -154,7 +154,7 @@
 
         <SidebarFooter>
           <SidebarMenuButton
-            class="flex justify-center group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:bg-destructive group-data-[collapsible=icon]:text-destructive-foreground group-data-[collapsible=icon]:shadow-sm group-data-[collapsible=icon]:hover:bg-destructive/90"
+            class="glass-focus flex min-h-11 justify-center group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:bg-destructive group-data-[collapsible=icon]:text-destructive-foreground group-data-[collapsible=icon]:shadow-sm group-data-[collapsible=icon]:hover:bg-destructive/90"
             :tooltip="$t('global.sign_out')"
             data-testid="logout-button"
             @click="logout"
@@ -168,7 +168,7 @@
 
         <SidebarRail />
       </Sidebar>
-      <SidebarInset class="min-h-dvh max-w-full overflow-hidden bg-background-accent">
+      <SidebarInset class="glass-canvas min-h-dvh max-w-full overflow-hidden bg-background-accent">
         <div class="relative flex h-full flex-col justify-center">
           <div v-if="preferences.displayLegacyHeader">
             <AppHeaderDecor class="-mt-10 hidden lg:block" />
@@ -176,7 +176,7 @@
           </div>
           <!-- IMPORTANT: if you change the height of this div, alter the top value in the item edit page-->
           <div
-            class="sticky top-0 z-20 flex h-[var(--header-height-mobile)] translate-y-[-0.5px] flex-col bg-secondary p-2 shadow-md sm:h-[var(--header-height)] sm:flex-row"
+            class="glass-header sticky top-0 z-20 flex h-[var(--header-height-mobile)] translate-y-[-0.5px] flex-col bg-secondary p-2 shadow-md sm:h-[var(--header-height)] sm:flex-row"
             :class="{
               'lg:hidden': preferences.displayLegacyHeader,
             }"
@@ -191,18 +191,19 @@
             <div class="flex h-1/2 grow items-center justify-end gap-2 sm:h-auto">
               <Input
                 v-model:model-value="search"
-                class="h-9 grow sm:max-w-sm"
+                class="glass-field-touch h-11 min-h-11 grow sm:max-w-sm"
                 :placeholder="$t('global.search')"
+                :aria-label="$t('global.search')"
                 type="search"
                 @keyup.enter="triggerSearch"
               />
               <div>
-                <Button size="icon" @click="triggerSearch">
+                <Button size="touch-icon" variant="action" :aria-label="$t('global.search')" @click="triggerSearch">
                   <MdiMagnify />
                 </Button>
               </div>
               <div>
-                <Button size="icon" @click="openScanner">
+                <Button size="touch-icon" variant="glass" :aria-label="$t('menu.scanner')" @click="openScanner">
                   <MdiQrcodeScan />
                 </Button>
               </div>

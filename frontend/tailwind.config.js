@@ -98,6 +98,20 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        "glass-nav": "var(--glass-radius-nav)",
+        "glass-panel": "var(--glass-radius-panel)",
+        "glass-control": "var(--glass-radius-control)",
+      },
+      spacing: {
+        touch: "var(--glass-touch)",
+        "glass-page": "var(--glass-space-page)",
+        "glass-section": "var(--glass-space-section)",
+      },
+      minHeight: {
+        touch: "var(--glass-touch)",
+      },
+      minWidth: {
+        touch: "var(--glass-touch)",
       },
       keyframes: {
         "accordion-down": {

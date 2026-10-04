@@ -5,8 +5,8 @@
         variant="outline"
         role="combobox"
         :aria-expanded="open"
-        :size="sidebar.state.value === 'collapsed' ? 'icon' : undefined"
-        :class="sidebar.state.value === 'collapsed' ? 'size-10' : 'w-full justify-between drop-shadow-md'"
+        :size="sidebar.state.value === 'collapsed' ? 'touch-icon' : 'touch'"
+        :class="sidebar.state.value === 'collapsed' ? '' : 'w-full justify-between drop-shadow-md'"
         :aria-label="t('components.collection.selector.select_collection')"
         :title="t('components.collection.selector.select_collection')"
       >
@@ -34,6 +34,7 @@
       <Command :ignore-filter="true">
         <CommandGroup>
           <CommandItem
+            class="glass-touch glass-focus"
             value="create-collection"
             @select="
               () => {
@@ -45,6 +46,7 @@
             <Plus class="mr-2 size-4" /> {{ t("components.collection.selector.create_collection") }}
           </CommandItem>
           <CommandItem
+            class="glass-touch glass-focus"
             value="join-collection"
             @select="
               () => {
@@ -56,7 +58,11 @@
             <UserPlus class="mr-2 size-4" /> {{ t("components.collection.selector.join_collection") }}
           </CommandItem>
           <CommandItem as-child value="collection-settings">
-            <NuxtLink to="/collection/members" class="flex w-full items-center" @click="open = false">
+            <NuxtLink
+              to="/collection/members"
+              class="glass-touch glass-focus flex w-full items-center"
+              @click="open = false"
+            >
               <Settings class="mr-2 size-4" />
               {{ t("components.collection.selector.collection_options") }}
             </NuxtLink>
@@ -73,6 +79,7 @@
             <CommandItem
               v-for="collection in filteredCollections"
               :key="collection.id"
+              class="glass-touch glass-focus"
               :value="collection.id"
               @select="selectCollection(collection)"
             >
