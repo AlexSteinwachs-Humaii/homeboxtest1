@@ -76,15 +76,24 @@
     return route.fullPath.split("/").at(-1) !== itemId.value;
   });
 
-  const { data: item, refresh } = useAsyncData(itemId.value, async () => {
-    const { data, error } = await api.items.get(itemId.value);
-    if (error) {
-      toast.error(t("items.toast.failed_load_item"));
-      navigateTo("/home");
-      return;
-    }
-    return data;
-  });
+  const itemLoadFailed = ref(false);
+
+  const { data: item, refresh } = useAsyncData(
+    itemId.value,
+    async () => {
+      const { data, error } = await api.items.get(itemId.value);
+      if (error || !data) {
+        itemLoadFailed.value = true;
+        toast.error(t("items.toast.failed_load_item"));
+        navigateTo("/home");
+        return null;
+      }
+      itemLoadFailed.value = false;
+      return data;
+    },
+    // Do not suspend the page: a held or failed fetch must show feedback, not a blank shell.
+    { lazy: true }
+  );
   onMounted(() => {
     refresh();
   });
@@ -154,10 +163,10 @@
             originalType: cur.mimeType,
             attachmentId: cur.id,
           };
-          if (cur.thumbnail) {
+          if (cur.thumbnail?.id) {
             photo.thumbnailSrc = api.authURL(`/entities/${item.value!.id}/attachments/${cur.thumbnail.id}`);
           } else {
-            photo.thumbnailSrc = photo.originalSrc; // fallback to itself if no thumbnail
+            photo.thumbnailSrc = photo.originalSrc;
           }
           acc.push(photo);
         }
@@ -654,7 +663,20 @@
 
 <template>
   <div
-    v-if="item"
+    v-if="!item"
+    class="glass-page mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-glass-section"
+    data-testid="item-pending"
+  >
+    <div v-if="itemLoadFailed" role="alert" data-testid="item-load-error" class="glass-panel px-5 py-6">
+      <p class="max-w-prose text-base text-foreground">{{ $t("items.load_error") }}</p>
+    </div>
+    <div v-else role="status" data-testid="item-loading" aria-busy="true" class="glass-panel px-5 py-6">
+      <p class="max-w-prose text-base text-muted-foreground">{{ $t("items.loading") }}</p>
+    </div>
+  </div>
+
+  <div
+    v-else
     class="glass-page mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-glass-section"
     data-testid="item-page"
   >
@@ -893,13 +915,26 @@
             <DetailsSection :details="purchaseDetails" variant="compact" />
           </BaseCard>
 
-          <BaseCard v-if="photos && photos.length > 0">
+          <BaseCard v-if="photos.length > 0" variant="readable" data-testid="item-photos">
             <template #title> {{ $t("items.photos") }} </template>
-            <div class="scroll-bg container mx-auto flex max-h-[500px] flex-wrap gap-2 overflow-y-scroll border-t p-4">
-              <button v-for="(img, i) in photos" :key="i" @click="openImageDialog(img, item.id)">
-                <img class="max-h-[200px] rounded" :src="img.thumbnailSrc" :alt="$t('items.photo')" loading="lazy" />
-              </button>
-            </div>
+            <ul class="flex max-h-[500px] min-w-0 flex-wrap gap-3 overflow-y-auto border-t p-4">
+              <li v-for="img in photos" :key="img.attachmentId" class="min-w-0">
+                <button
+                  type="button"
+                  class="glass-focus inline-flex min-h-11 min-w-11 max-w-full items-center justify-center overflow-hidden rounded-md"
+                  :data-testid="`item-photo-${img.attachmentId}`"
+                  :aria-label="$t('items.edit.view_image')"
+                  @click="openImageDialog(img, item.id)"
+                >
+                  <img
+                    class="max-h-48 max-w-full rounded object-contain"
+                    :src="img.thumbnailSrc || img.originalSrc"
+                    :alt="$t('items.photo')"
+                    loading="lazy"
+                  />
+                </button>
+              </li>
+            </ul>
           </BaseCard>
 
           <BaseCard v-if="showAttachments" collapsable variant="readable" data-testid="item-attachments">
@@ -952,7 +987,7 @@
       </div>
     </section>
 
-    <section v-if="items && items.length > 0">
+    <section v-if="items && items.length > 0" data-testid="item-children">
       <ItemViewSelectable :items="items" @refresh="refreshItemList" />
     </section>
 
