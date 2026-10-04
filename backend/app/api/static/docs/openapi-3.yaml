@@ -175,6 +175,16 @@ paths:
             type: array
             items:
               type: string
+        - description: Search offboarded history (including archived records)
+          name: onlyOffboarded
+          in: query
+          schema:
+            type: boolean
+        - description: Include archived active items
+          name: includeArchived
+          in: query
+          schema:
+            type: boolean
       responses:
         "200":
           description: OK

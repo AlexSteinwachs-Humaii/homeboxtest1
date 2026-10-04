@@ -282,6 +282,18 @@ const docTemplate = `{
                         "description": "parent Ids",
                         "name": "parentIds",
                         "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Search offboarded history (including archived records)",
+                        "name": "onlyOffboarded",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Include archived active items",
+                        "name": "includeArchived",
+                        "in": "query"
                     }
                 ],
                 "responses": {

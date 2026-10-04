@@ -2615,6 +2615,14 @@ paths:
           type: string
         name: parentIds
         type: array
+      - description: Search offboarded history (including archived records)
+        in: query
+        name: onlyOffboarded
+        type: boolean
+      - description: Include archived active items
+        in: query
+        name: includeArchived
+        type: boolean
       produces:
       - application/json
       responses:

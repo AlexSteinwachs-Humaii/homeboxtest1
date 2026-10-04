@@ -1,3 +1,5 @@
+import { ref, nextTick } from "vue";
+import { watchDebounced } from "@vueuse/core";
 import type { EntitySummary, TagSummary } from "~~/lib/api/types/data-contracts";
 import type { UserClient } from "~~/lib/api/user";
 
@@ -11,14 +13,15 @@ export function useItemSearch(client: UserClient, opts?: SearchOptions) {
   const tags = ref<TagSummary[]>([]);
   const results = ref<EntitySummary[]>([]);
   const includeArchived = ref(false);
+  const onlyOffboarded = ref(false);
   const isLoading = ref(false);
-  const pendingQuery = ref<string | null>(null);
+  let pendingSearch = false;
 
-  watchDebounced(query, search, { debounce: 250, maxWait: 1000 });
+  watchDebounced([query, locations, tags, includeArchived, onlyOffboarded], search, { debounce: 250, maxWait: 1000 });
   async function search(): Promise<boolean> {
     if (isLoading.value) {
-      // Store the latest query to run after current search completes
-      pendingQuery.value = query.value;
+      // Queue the latest filters to run after the current search completes
+      pendingSearch = true;
       return false;
     }
 
@@ -33,6 +36,7 @@ export function useItemSearch(client: UserClient, opts?: SearchOptions) {
         parentIds: locIds,
         tags: tagIds,
         includeArchived: includeArchived.value,
+        onlyOffboarded: onlyOffboarded.value,
       });
 
       if (error || !data) {
@@ -45,17 +49,11 @@ export function useItemSearch(client: UserClient, opts?: SearchOptions) {
     } finally {
       isLoading.value = false;
 
-      // If user changed query while we were searching, run again with the latest query
-      if (pendingQuery.value !== null && pendingQuery.value !== searchQuery) {
-        const nextQuery = pendingQuery.value;
-        pendingQuery.value = null;
-        // Use nextTick to avoid potential recursion issues
+      // Re-run even when only a lifecycle or other filter changed in flight.
+      if (pendingSearch) {
+        pendingSearch = false;
         await nextTick();
-        if (query.value === nextQuery) {
-          await search();
-        }
-      } else {
-        pendingQuery.value = null;
+        await search();
       }
     }
   }
@@ -86,6 +84,8 @@ export function useItemSearch(client: UserClient, opts?: SearchOptions) {
     results,
     locations,
     tags,
+    includeArchived,
+    onlyOffboarded,
     isLoading,
     triggerSearch,
   };

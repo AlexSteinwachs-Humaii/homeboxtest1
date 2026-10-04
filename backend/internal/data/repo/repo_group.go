@@ -188,7 +188,7 @@ func (r *GroupRepository) StatsPurchasePrice(ctx context.Context, gid uuid.UUID,
 		SUM(CASE WHEN e.created_at < $2 THEN e.purchase_price ELSE 0 END) AS price_at_end
 	FROM entities e
 	JOIN entity_types et ON et.id = e.entity_type_entities
-	WHERE e.group_entities = $3 AND e.archived = false AND et.is_location = false
+	WHERE e.group_entities = $3 AND e.archived = false AND e.disposed = false AND et.is_location = false
 `
 	stats := ValueOverTime{
 		Start: start,
@@ -222,6 +222,7 @@ func (r *GroupRepository) StatsPurchasePrice(ctx context.Context, gid uuid.UUID,
 			entity.CreatedAtGTE(start),
 			entity.CreatedAtLTE(end),
 			entity.Archived(false),
+			entity.Disposed(false),
 			entity.HasEntityTypeWith(entitytype.IsLocation(false)),
 		).
 		Select(
@@ -249,15 +250,15 @@ func (r *GroupRepository) StatsGroup(ctx context.Context, gid uuid.UUID) (GroupS
 	q := `
 		SELECT
             (SELECT COUNT(*) FROM user_groups WHERE group_id = $2) AS total_users,
-            (SELECT COUNT(*) FROM entities e JOIN entity_types et ON et.id = e.entity_type_entities WHERE e.group_entities = $2 AND e.archived = false AND et.is_location = false) AS total_items,
+            (SELECT COUNT(*) FROM entities e JOIN entity_types et ON et.id = e.entity_type_entities WHERE e.group_entities = $2 AND e.archived = false AND e.disposed = false AND et.is_location = false) AS total_items,
             (SELECT COUNT(*) FROM entities e JOIN entity_types et ON et.id = e.entity_type_entities WHERE e.group_entities = $2 AND et.is_location = true) AS total_locations,
             (SELECT COUNT(*) FROM tags WHERE group_tags = $2) AS total_tags,
-            (SELECT SUM(e.purchase_price*e.quantity) FROM entities e JOIN entity_types et ON et.id = e.entity_type_entities WHERE e.group_entities = $2 AND e.archived = false AND et.is_location = false) AS total_item_price,
+            (SELECT SUM(e.purchase_price*e.quantity) FROM entities e JOIN entity_types et ON et.id = e.entity_type_entities WHERE e.group_entities = $2 AND e.archived = false AND e.disposed = false AND et.is_location = false) AS total_item_price,
             (SELECT COUNT(*)
                 FROM entities e
                 JOIN entity_types et ON et.id = e.entity_type_entities
                     WHERE e.group_entities = $2
-                    AND e.archived = false
+                    AND e.archived = false AND e.disposed = false
                     AND et.is_location = false
                     AND (e.lifetime_warranty = true OR e.warranty_expires > $1)
                 ) AS total_with_warranty;

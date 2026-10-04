@@ -22,6 +22,7 @@ import type { Requests } from "~~/lib/requests";
 export type ItemsQuery = {
   orderBy?: string;
   includeArchived?: boolean;
+  onlyOffboarded?: boolean;
   page?: number;
   pageSize?: number;
   parentIds?: string[];

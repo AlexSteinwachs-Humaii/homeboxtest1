@@ -68,6 +68,7 @@ type (
 		OnlyWithoutPhoto bool    `json:"onlyWithoutPhoto"`
 		OnlyWithPhoto    bool    `json:"onlyWithPhoto"`
 		IncludeArchived  bool    `json:"includeArchived"`
+		OnlyOffboarded   bool    `json:"onlyOffboarded"` // historical search includes archived disposed records
 		FilterChildren   bool    `json:"filterChildren"` // when true, only return root entities (no parent)
 	}
 
@@ -589,6 +590,7 @@ func entityQuerySpanAttrs(gid uuid.UUID, q EntityQuery) []attribute.KeyValue {
 		attribute.Bool("query.only_with_photo", q.OnlyWithPhoto),
 		attribute.Bool("query.only_without_photo", q.OnlyWithoutPhoto),
 		attribute.Bool("query.include_archived", q.IncludeArchived),
+		attribute.Bool("query.only_offboarded", q.OnlyOffboarded),
 		attribute.Bool("query.filter_children", q.FilterChildren),
 		attribute.String("query.order_by", q.OrderBy),
 		attribute.Bool("query.is_location.set", isLocSet),
@@ -626,14 +628,10 @@ func (r *EntityRepository) QueryByGroup(ctx context.Context, gid uuid.UUID, q En
 		qb = qb.Where(entity.Not(entity.HasParent()))
 	}
 
-	if q.IncludeArchived {
-		qb = qb.Where(
-			entity.Or(
-				entity.Archived(true),
-				entity.Archived(false),
-			),
-		)
-	} else {
+	// Apply lifecycle before counting and paging. History deliberately ignores the
+	// archive filter so an archived disposal cannot become undiscoverable.
+	qb = qb.Where(entity.Disposed(q.OnlyOffboarded))
+	if !q.OnlyOffboarded && !q.IncludeArchived {
 		qb = qb.Where(entity.Archived(false))
 	}
 
@@ -847,6 +845,7 @@ func (r *EntityRepository) getChildItemCounts(ctx context.Context, gid uuid.UUID
 		WHERE e.group_entities = $1
 			AND et.is_location = false
 			AND e.archived = false
+			AND e.disposed = false
 			AND e.entity_children IN (%s)
 		GROUP BY e.entity_children
 	`, strings.Join(placeholders, ","))
@@ -2417,6 +2416,7 @@ func (r *EntityRepository) GetAllContainers(ctx context.Context, gid uuid.UUID, 
 				WHERE
 					child.entity_children = e.id
 					AND child.archived = false
+					AND child.disposed = false
 					AND ct.is_location = false
 			) as item_count
 		FROM
@@ -2821,6 +2821,8 @@ func (r *EntityRepository) Tree(ctx context.Context, gid uuid.UUID, tq TreeQuery
 			JOIN    entity_types et ON et.id = e.entity_type_entities
 			WHERE   et.is_location = false
 			AND     e.entity_children IN (SELECT id FROM entity_tree)
+			AND     e.group_entities = $1
+			AND     e.disposed = false
 
 			UNION ALL
 
@@ -2834,6 +2836,8 @@ func (r *EntityRepository) Tree(ctx context.Context, gid uuid.UUID, tq TreeQuery
 			JOIN    item_tree p
 			ON      c.entity_children = p.id
 			WHERE   ct.is_location = false
+			AND     c.group_entities = $1
+			AND     c.disposed = false
 			AND     level < 10 -- prevent infinite loop & excessive recursion
 		)`
 

@@ -55,6 +55,8 @@ func startEntityCtrlSpan(ctx context.Context, name string, attrs ...attribute.Ke
 //	@Param		pageSize	query		int			false	"items per page"
 //	@Param		tags		query		[]string	false	"tags Ids"		collectionFormat(multi)
 //	@Param		parentIds	query		[]string	false	"parent Ids"	collectionFormat(multi)
+//	@Param		onlyOffboarded query bool false "Search offboarded history (including archived records)"
+//	@Param		includeArchived query bool false "Include archived active items"
 //	@Success	200			{object}	repo.EntityListResult
 //	@Router		/v1/entities [GET]
 //	@Security	Bearer
@@ -85,6 +87,7 @@ func (ctrl *V1Controller) HandleEntitiesGetAll() errchain.HandlerFunc {
 			OnlyWithoutPhoto: queryBool(params.Get("onlyWithoutPhoto")),
 			OnlyWithPhoto:    queryBool(params.Get("onlyWithPhoto")),
 			IncludeArchived:  queryBool(params.Get("includeArchived")),
+			OnlyOffboarded:   queryBool(params.Get("onlyOffboarded")),
 			Fields:           filterFieldItems(params["fields"]),
 			OrderBy:          params.Get("orderBy"),
 		}
@@ -120,6 +123,7 @@ func (ctrl *V1Controller) HandleEntitiesGetAll() errchain.HandlerFunc {
 			attribute.Int("query.parent_ids.count", len(query.ParentIDs)),
 			attribute.Int("query.fields.count", len(query.Fields)),
 			attribute.Bool("query.include_archived", query.IncludeArchived),
+			attribute.Bool("query.only_offboarded", query.OnlyOffboarded),
 			attribute.Bool("query.filter_children", query.FilterChildren),
 			attribute.Bool("query.only_with_photo", query.OnlyWithPhoto),
 			attribute.Bool("query.only_without_photo", query.OnlyWithoutPhoto),

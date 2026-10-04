@@ -629,6 +629,7 @@
         "field_value": "Field Value",
         "first": "First",
         "include_archive": "Include Archived Items",
+        "only_offboarded": "Offboarded assets (includes archived)",
         "insured": "Insured",
         "invalid_asset_id": "Invalid Asset ID",
         "last": "Last",

@@ -83,6 +83,7 @@
 
   const query = useOptionalRouteQuery("q", "");
   const includeArchived = useOptionalRouteQuery("archived", false);
+  const onlyOffboarded = useOptionalRouteQuery("offboarded", false);
   const fieldSelector = useOptionalRouteQuery("fieldSelector", false);
   const negateTags = useOptionalRouteQuery("negateTags", false);
   const onlyWithoutPhoto = useOptionalRouteQuery("onlyWithoutPhoto", false);
@@ -189,6 +190,11 @@
     return data;
   });
 
+  watch(onlyOffboarded, () => {
+    page.value = 1;
+    search();
+  });
+
   watch(includeArchived, (newV, oldV) => {
     if (newV !== oldV) {
       search();
@@ -256,11 +262,13 @@
     return data;
   }
 
+  let searchGeneration = 0;
   async function search() {
     if (searchLocked.value) {
       return;
     }
 
+    const generation = ++searchGeneration;
     loading.value = true;
 
     const fields = [];
@@ -273,6 +281,7 @@
 
     const push_query: Record<string, string | string[] | number | boolean | undefined> = {
       archived: includeArchived.value,
+      offboarded: onlyOffboarded.value,
       fieldSelector: fieldSelector.value,
       negateTags: negateTags.value,
       onlyWithoutPhoto: onlyWithoutPhoto.value,
@@ -315,11 +324,15 @@
       onlyWithoutPhoto: onlyWithoutPhoto.value,
       onlyWithPhoto: onlyWithPhoto.value,
       includeArchived: includeArchived.value,
+      onlyOffboarded: onlyOffboarded.value,
       page: page.value,
       pageSize: pageSize.value,
       orderBy: orderBy.value,
       fields,
     });
+
+    // Do not let an older request overwrite a newer lifecycle/filter result.
+    if (generation !== searchGeneration) return;
 
     function resetItems() {
       page.value = Math.max(1, page.value - 1);
@@ -412,7 +425,12 @@
           </PopoverTrigger>
           <PopoverContent class="z-40 flex flex-col gap-2">
             <Label class="flex cursor-pointer items-center">
-              <Switch v-model="includeArchived" class="ml-auto" />
+              <Switch v-model="onlyOffboarded" :aria-label="$t('items.only_offboarded')" class="ml-auto" />
+              <div class="grow" />
+              <span class="text-right">{{ $t("items.only_offboarded") }}</span>
+            </Label>
+            <Label class="flex cursor-pointer items-center">
+              <Switch v-model="includeArchived" :disabled="onlyOffboarded" class="ml-auto" />
               <div class="grow" />
               <span class="text-right"> {{ $t("items.include_archive") }} </span>
             </Label>
