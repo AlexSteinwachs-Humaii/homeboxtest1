@@ -21,6 +21,9 @@
     disableSort?: boolean;
     /** Search page chrome. Other callers keep the default items header. */
     presentation?: "search";
+    /** Compact Search cards use a fixed page size and must not edit the table preference. */
+    lockPageSize?: boolean;
+    resultPhase?: "loading" | "ready" | "empty" | "error";
   }>();
 
   const emit = defineEmits<{
@@ -128,6 +131,8 @@
       :data="items"
       :location-flat-tree="locationFlatTree"
       :external-pagination="pagination"
+      :lock-page-size="lockPageSize"
+      :result-phase="resultPhase"
       @refresh="$emit('refresh')"
     />
   </section>

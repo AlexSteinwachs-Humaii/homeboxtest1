@@ -17,6 +17,11 @@
     readCompactSearch,
     searchResultsPageSize,
   } from "~/components/Item/View/search-density";
+  import {
+    pageAfterCriteriaChange,
+    resolveSearchPage,
+    searchCriteriaKey,
+  } from "~/components/Item/View/search-pagination";
   import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
   import { Label } from "@/components/ui/label";
   import { Switch } from "@/components/ui/switch";
@@ -98,7 +103,10 @@
   const page1 = useOptionalRouteQuery("page", 1);
 
   const page = computed({
-    get: () => page1.value,
+    get: () => {
+      const value = Number(page1.value);
+      return Number.isFinite(value) && value >= 1 ? Math.floor(value) : 1;
+    },
     set: value => {
       page1.value = value;
     },
@@ -133,12 +141,6 @@
 
   const route = useRoute();
   const router = useRouter();
-
-  watch(pageSize, (next, previous) => {
-    if (previous !== undefined && next !== previous && page.value !== 1) {
-      page.value = 1;
-    }
-  });
 
   let compactQuery: MediaQueryList | null = null;
   const syncCompact = () => {
@@ -243,9 +245,29 @@
     return data;
   });
 
-  watch(includeArchived, (newV, oldV) => {
-    if (newV !== oldV) {
-      search();
+  const criteria = computed(() =>
+    searchCriteriaKey({
+      query: query.value,
+      locationIds: locIDs.value,
+      tagIds: tagIDs.value,
+      includeArchived: includeArchived.value,
+      negateTags: negateTags.value,
+      onlyWithoutPhoto: onlyWithoutPhoto.value,
+      onlyWithPhoto: onlyWithPhoto.value,
+      orderBy: orderBy.value,
+      fields: fieldTuples.value.filter(tuple => tuple[0] && tuple[1]).map(tuple => `${tuple[0]}=${tuple[1]}`),
+      pageSize: pageSize.value,
+      view: itemView.value,
+    })
+  );
+
+  watch(criteria, (next, previous) => {
+    if (!queryParamsInitialized.value) {
+      return;
+    }
+    const nextPage = pageAfterCriteriaChange(page.value, previous, next);
+    if (nextPage !== page.value) {
+      page.value = nextPage;
     }
   });
 
@@ -255,33 +277,15 @@
     }
   });
 
-  watch(negateTags, (newV, oldV) => {
-    if (newV !== oldV) {
-      search();
-    }
-  });
-
-  watch(onlyWithoutPhoto, (newV, oldV) => {
+  watch(onlyWithoutPhoto, newV => {
     if (newV && onlyWithPhoto.value) {
-      // this triggers the watch on onlyWithPhoto
       onlyWithPhoto.value = false;
-    } else if (newV !== oldV) {
-      search();
     }
   });
 
-  watch(onlyWithPhoto, (newV, oldV) => {
+  watch(onlyWithPhoto, newV => {
     if (newV && onlyWithoutPhoto.value) {
-      // this triggers the watch on onlyWithoutPhoto
       onlyWithoutPhoto.value = false;
-    } else if (newV !== oldV) {
-      search();
-    }
-  });
-
-  watch(orderBy, (newV, oldV) => {
-    if (newV !== oldV) {
-      search();
     }
   });
 
@@ -310,11 +314,14 @@
     return data;
   }
 
+  let searchSerial = 0;
+
   async function search() {
     if (searchLocked.value) {
       return;
     }
 
+    const serial = ++searchSerial;
     phase.value = "loading";
     loading.value = true;
 
@@ -362,6 +369,12 @@
 
     await router.push({ query: push_query as LocationQueryRaw });
 
+    if (serial !== searchSerial) {
+      return;
+    }
+
+    const requestedPage = page.value;
+    const requestedSize = pageSize.value;
     const { data, error } = await api.items.getAll({
       q: query.value || "",
       parentIds: locIDs.value,
@@ -370,36 +383,43 @@
       onlyWithoutPhoto: onlyWithoutPhoto.value,
       onlyWithPhoto: onlyWithPhoto.value,
       includeArchived: includeArchived.value,
-      page: page.value,
-      pageSize: pageSize.value,
+      page: requestedPage,
+      pageSize: requestedSize,
       orderBy: orderBy.value,
       fields,
     });
 
-    function resetItems() {
-      page.value = Math.max(1, page.value - 1);
-      loading.value = false;
-      total.value = 0;
-      items.value = [];
+    if (serial !== searchSerial) {
+      return;
     }
 
-    if (error) {
-      resetItems();
+    const decision = resolveSearchPage({
+      requestedPage,
+      pageSize: requestedSize,
+      total: error ? null : data.total,
+      returned: error ? 0 : (data.items?.length ?? 0),
+      failed: !!error,
+    });
+
+    if (decision.action === "error") {
+      items.value = [];
       phase.value = "error";
+      loading.value = false;
       toast.error(t("items.toast.failed_search_items"));
       return;
     }
 
-    if (!data.items || data.items.length === 0) {
-      resetItems();
-      phase.value = "empty";
+    // Keep the API total even when this page cannot be shown, so an invalid
+    // page does not flash a zero-result inventory.
+    total.value = decision.total;
+    if (decision.action === "requery") {
+      page.value = decision.page;
+      void search();
       return;
     }
 
-    total.value = data.total;
-    items.value = data.items;
-    phase.value = "ready";
-
+    items.value = data.items ?? [];
+    phase.value = decision.phase;
     loading.value = false;
     initialSearch.value = false;
   }
@@ -410,7 +430,7 @@
     void search();
   });
 
-  watchDebounced([page, pageSize, query, selectedTags, selectedLocations], search, { debounce: 250, maxWait: 1000 });
+  watchDebounced([page, criteria], search, { debounce: 250, maxWait: 1000 });
 
   async function submit() {
     // Set URL Params
@@ -698,6 +718,8 @@
         :items="items"
         :location-flat-tree="locationFlatTree"
         :pagination="pagination"
+        :lock-page-size="itemView === 'card' && compactSearch"
+        :result-phase="phase"
         disable-sort
         @refresh="async () => search()"
       />

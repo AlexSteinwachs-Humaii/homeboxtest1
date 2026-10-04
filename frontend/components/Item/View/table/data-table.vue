@@ -37,6 +37,9 @@
     externalPagination?: Pagination;
     /** Opt-in Search presentation. Omitted callers keep the existing table and cards. */
     presentation?: "search";
+    /** Search card density is fixed; the rows-per-page control would rewrite the table preference. */
+    lockPageSize?: boolean;
+    resultPhase?: "loading" | "ready" | "empty" | "error";
   }>();
 
   defineEmits<{
@@ -78,7 +81,10 @@
   watch(
     () => pagination.value.pageSize,
     newSize => {
-      preferences.value.itemsPerTablePage = newSize;
+      // Internal page size is the saved table preference. Never copy a Search card page into it.
+      if (preferences.value.itemsPerTablePage !== newSize) {
+        preferences.value.itemsPerTablePage = newSize;
+      }
     }
   );
 
@@ -171,7 +177,17 @@
   };
 
   watch(() => pagination.value.pageIndex, scrollToTop);
-  watch(() => props.externalPagination?.page, scrollToTop);
+  watch(
+    () => props.externalPagination?.page,
+    (next, previous) => {
+      // Page changes are page-local: do not keep a selection that belonged to another page.
+      if (previous !== undefined && next !== previous) {
+        table.resetRowSelection();
+        table.resetExpanded();
+      }
+      scrollToTop();
+    }
+  );
 
   watch(
     () => [props.view, props.presentation, props.data.map(row => row.id).join("\0")] as const,
@@ -226,10 +242,21 @@
             </div>
           </div>
 
-          <div class="flex flex-col gap-2">
+          <div v-if="lockPageSize" class="flex flex-col gap-2" data-testid="search-page-size-locked">
+            <Label> {{ $t("components.item.view.table.rows_per_page") }} </Label>
+            <p class="text-sm text-muted-foreground">
+              {{
+                $t("items.search_page_size_locked", {
+                  count: externalPagination?.pageSize,
+                  saved: preferences.itemsPerTablePage,
+                })
+              }}
+            </p>
+          </div>
+          <div v-else class="flex flex-col gap-2">
             <Label> {{ $t("components.item.view.table.rows_per_page") }} </Label>
             <Select :model-value="pagination.pageSize" @update:model-value="val => table.setPageSize(Number(val))">
-              <SelectTrigger>
+              <SelectTrigger data-testid="table-page-size">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -249,7 +276,7 @@
       </DialogContent>
     </Dialog>
     <BaseCard v-if="props.view === 'table'">
-      <div v-if="!props.disableControls" class="border-b p-3">
+      <div v-if="!props.disableControls && presentation !== 'search'" class="border-b p-3">
         <DataTableControls
           :table="table"
           :pagination="pagination"
@@ -260,7 +287,7 @@
       <div>
         <TableView :table="table" :columns="columns" :presentation="presentation" />
       </div>
-      <div v-if="!props.disableControls" class="border-t p-3">
+      <div v-if="!props.disableControls && presentation !== 'search'" class="border-t p-3">
         <DataTableControls
           :table="table"
           :pagination="pagination"
@@ -270,7 +297,7 @@
       </div>
     </BaseCard>
     <div v-else>
-      <div v-if="!props.disableControls" class="pb-2">
+      <div v-if="!props.disableControls && presentation !== 'search'" class="pb-2">
         <DataTableControls
           :table="table"
           :pagination="pagination"
@@ -284,14 +311,16 @@
         :presentation="presentation"
         @refresh="$emit('refresh')"
       />
-      <div v-if="!props.disableControls" class="pt-2">
-        <DataTableControls
-          :table="table"
-          :pagination="pagination"
-          :data-length="data.length"
-          :external-pagination="externalPagination"
-        />
-      </div>
+    </div>
+    <div v-if="presentation === 'search' && !props.disableControls" class="pt-4">
+      <DataTableControls
+        presentation="search"
+        :table="table"
+        :pagination="pagination"
+        :data-length="data.length"
+        :external-pagination="externalPagination"
+        :result-phase="resultPhase"
+      />
     </div>
   </div>
 </template>
