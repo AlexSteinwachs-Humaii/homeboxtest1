@@ -165,10 +165,12 @@
           <p v-if="phase === 'empty'" class="mb-4 max-w-prose text-sm text-foreground" data-testid="home-stats-empty">
             {{ $t("home.empty") }}
           </p>
-          <dl class="grid min-w-0 grid-cols-2 gap-x-4 gap-y-5 md:grid-cols-4 md:gap-0 md:divide-x md:divide-border">
-            <div v-for="cell in statCells" :key="cell.id" class="min-w-0 md:px-6 md:first:pl-2 md:last:pr-2">
+          <dl
+            class="grid min-w-0 grid-cols-2 gap-x-4 gap-y-5 md:grid-cols-[1.6fr_1fr_1fr_1fr] md:gap-0 md:divide-x md:divide-border"
+          >
+            <div v-for="cell in statCells" :key="cell.id" class="min-w-0 md:px-3 md:first:pl-2 md:last:pr-2">
               <dd
-                class="break-words text-2xl font-semibold tabular-nums leading-tight md:text-3xl"
+                class="break-words text-2xl font-semibold tabular-nums leading-tight"
                 :class="cell.emphasis ? 'text-primary' : 'text-foreground'"
                 :data-testid="`home-stat-${cell.id}`"
               >

@@ -297,6 +297,8 @@ test.describe("Glass v5 My Home overview", () => {
     await expect(page.getByTestId("home-currency")).toContainText("EUR");
     await expect(page.getByTestId("home-stat-value")).not.toContainText("$2,480");
     await expect(page.getByTestId("home-stat-value")).toContainText("1,250");
+    const valueBox = await boxOf(page.getByTestId("home-stat-value"));
+    expect(valueBox.height, "ordinary collection value fits on one line at iPad width").toBeLessThan(40);
 
     const grid = page.getByTestId("home-locations-grid");
     await expect(grid).toBeVisible();
