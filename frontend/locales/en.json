@@ -24,6 +24,13 @@
         "left_collection": "You have left the collection.",
         "manage_collection": "Manage Collection",
         "subtitle": "Manage your collection, its members and preferences.",
+        "settings_title": "Collection settings",
+        "settings_subtitle": "Choose a name and currency format for {name}.",
+        "settings_load_failed": "Could not load collection settings.",
+        "settings_retry": "Retry",
+        "settings_saving": "Saving…",
+        "settings_example_pending": "…",
+        "update_collection": "Update Collection",
         "members": {
             "cannot_remove_last": "You cannot remove the last member.",
             "email": "Email",
