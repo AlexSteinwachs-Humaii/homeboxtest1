@@ -1,11 +1,26 @@
 <template>
-  <div class="border-t px-4 py-5 sm:p-0">
-    <dl class="sm:divide-y">
-      <div v-for="detail in details" :key="detail.name" class="group py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-        <dt class="text-sm font-medium">
+  <div :class="compact ? 'border-t border-border px-4 sm:px-6' : 'border-t px-4 py-5 sm:p-0'">
+    <dl :class="compact ? 'divide-y divide-border' : 'sm:divide-y'">
+      <div
+        v-for="detail in details"
+        :key="detail.name"
+        class="group min-w-0"
+        :class="
+          compact
+            ? 'flex flex-col gap-1 py-3 min-[280px]:flex-row min-[280px]:items-start min-[280px]:justify-between min-[280px]:gap-4'
+            : 'py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6'
+        "
+      >
+        <dt
+          class="min-w-0 text-sm [overflow-wrap:anywhere]"
+          :class="compact ? 'text-muted-foreground min-[280px]:max-w-[40%] min-[280px]:shrink-0' : 'font-medium'"
+        >
           {{ $t(detail.name) }}
         </dt>
-        <dd class="text-start text-sm sm:col-span-2">
+        <dd
+          class="min-w-0 max-w-full text-sm [overflow-wrap:anywhere]"
+          :class="compact ? 'font-semibold min-[280px]:flex-1 min-[280px]:text-end' : 'text-start sm:col-span-2'"
+        >
           <slot :name="detail.slot || detail.name" v-bind="{ detail }">
             <DateTime
               v-if="detail.type == 'date'"
@@ -21,8 +36,10 @@
                       :href="detail.href"
                       target="_blank"
                       rel="noopener noreferrer"
-                      :class="badgeVariants()"
-                      class="gap-1"
+                      :class="[
+                        badgeVariants(),
+                        compact ? 'min-h-touch max-w-full whitespace-normal break-all text-sm' : 'gap-1',
+                      ]"
                     >
                       <MdiOpenInNew />
                       {{ detail.text }}
@@ -37,28 +54,37 @@
             <template v-else-if="detail.type === 'markdown'">
               <ClientOnly>
                 <!-- eslint-disable-next-line tailwindcss/no-custom-classname -->
-                <div class="markdown-container w-full overflow-hidden break-words">
+                <div class="markdown-container w-full max-w-full overflow-hidden break-words text-start">
                   <Markdown :source="detail.text" />
                 </div>
               </ClientOnly>
             </template>
             <template v-else>
-              <!-- Fixed version with improved overflow handling -->
-              <span class="flex w-full items-center break-words">
+              <span
+                class="flex w-full min-w-0 items-center gap-2"
+                :class="compact ? 'flex-wrap min-[280px]:justify-end' : 'break-words'"
+              >
                 <a
                   v-if="maybeUrl(detail.text.toString()).isUrl"
                   :href="maybeUrl(detail.text.toString()).url"
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="overflow-hidden break-all text-primary underline hover:text-primary/80"
+                  class="min-w-0 overflow-hidden break-all text-primary underline hover:text-primary/80"
+                  :class="compact ? 'min-h-touch' : ''"
                   >{{ detail.text }}</a
                 >
-                <span v-else class="overflow-hidden break-all">{{ detail.text }}</span>
+                <span v-else class="min-w-0 overflow-hidden break-all">{{ detail.text }}</span>
                 <span
                   v-if="detail.copyable"
-                  class="my-0 ml-4 shrink-0 opacity-0 transition-opacity duration-75 group-hover:opacity-100"
+                  class="shrink-0"
+                  :class="compact ? '' : 'my-0 ml-4 opacity-0 transition-opacity duration-75 group-hover:opacity-100'"
                 >
-                  <CopyText v-if="detail.text.toString()" :text="detail.text.toString()" :icon-size="16" />
+                  <CopyText
+                    v-if="detail.text.toString()"
+                    :text="detail.text.toString()"
+                    :icon-size="16"
+                    :size="compact ? 'touch-icon' : 'icon'"
+                  />
                 </span>
               </span>
             </template>
@@ -78,13 +104,21 @@
   import Currency from "@/components/global/Currency.vue";
   import Markdown from "@/components/global/Markdown.vue";
   import CopyText from "@/components/global/CopyText.vue";
+  import { computed } from "vue";
 
-  defineProps({
+  const props = defineProps({
     details: {
       type: Object as () => (Detail | AnyDetail)[],
       required: true,
     },
+    /** Opt-in wrapping rows. Default keeps the existing three-column density. */
+    variant: {
+      type: String as () => "default" | "compact",
+      default: "default",
+    },
   });
+
+  const compact = computed(() => props.variant === "compact");
 </script>
 
 <style>

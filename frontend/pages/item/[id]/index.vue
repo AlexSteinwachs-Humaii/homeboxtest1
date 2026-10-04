@@ -834,22 +834,22 @@
         <NuxtPage :item="item" :page-key="itemId" />
 
         <!-- anything in this is not rendered if on another page -->
-        <BaseCard v-if="!hasNested" collapsable>
+        <BaseCard v-if="!hasNested" collapsable variant="readable" data-testid="item-details">
           <template #title> {{ $t("items.details") }} </template>
           <template #title-actions>
             <div class="mt-2 flex flex-wrap items-center justify-between gap-4">
-              <Label class="flex min-h-touch cursor-pointer items-center gap-2">
+              <Label class="flex min-h-touch cursor-pointer items-center gap-2" data-testid="item-show-empty">
                 <Switch v-model="preferences.showEmpty" />
                 {{ $t("items.show_empty") }}
               </Label>
               <div class="space-x-1">
-                <CopyText :text="currentUrl" :icon-size="16" />
+                <CopyText :text="currentUrl" :icon-size="16" size="touch-icon" />
               </div>
             </div>
           </template>
-          <DetailsSection :details="itemDetails">
+          <DetailsSection variant="compact" :details="itemDetails">
             <template #quantity="{ detail }">
-              <div class="flex min-w-0 flex-wrap items-center gap-2">
+              <div class="flex min-w-0 flex-wrap items-center gap-2 min-[280px]:justify-end">
                 <span>{{ detail.text }}</span>
                 <span class="inline-flex flex-wrap gap-2">
                   <Button
@@ -882,6 +882,11 @@
 
         <!-- anything in this is not rendered if on another page -->
         <template v-if="!hasNested">
+          <BaseCard v-if="showPurchase" collapsable variant="readable" data-testid="item-purchase">
+            <template #title> {{ $t("items.purchase_details") }} </template>
+            <DetailsSection variant="compact" :details="purchaseDetails" />
+          </BaseCard>
+
           <BaseCard v-if="photos && photos.length > 0">
             <template #title> {{ $t("items.photos") }} </template>
             <div class="scroll-bg container mx-auto flex max-h-[500px] flex-wrap gap-2 overflow-y-scroll border-t p-4">
@@ -898,7 +903,7 @@
             </div>
           </BaseCard>
 
-          <BaseCard v-if="showAttachments" collapsable>
+          <BaseCard v-if="showAttachments" collapsable variant="readable" data-testid="item-attachments">
             <template #title> {{ $t("items.attachments") }} </template>
             <DetailsSection v-if="attachmentDetails.length > 0" :details="attachmentDetails">
               <template #manuals>
@@ -935,19 +940,14 @@
             </div>
           </BaseCard>
 
-          <BaseCard v-if="showPurchase" collapsable>
-            <template #title> {{ $t("items.purchase_details") }} </template>
-            <DetailsSection :details="purchaseDetails" />
-          </BaseCard>
-
-          <BaseCard v-if="showWarranty" collapsable>
+          <BaseCard v-if="showWarranty" collapsable variant="readable" data-testid="item-warranty">
             <template #title> {{ $t("items.warranty_details") }} </template>
-            <DetailsSection :details="warrantyDetails" />
+            <DetailsSection variant="compact" :details="warrantyDetails" />
           </BaseCard>
 
-          <BaseCard v-if="showSold" collapsable>
+          <BaseCard v-if="showSold" collapsable variant="readable" data-testid="item-sold">
             <template #title> {{ $t("items.sold_details") }} </template>
-            <DetailsSection :details="soldDetails" />
+            <DetailsSection variant="compact" :details="soldDetails" />
           </BaseCard>
         </template>
       </div>

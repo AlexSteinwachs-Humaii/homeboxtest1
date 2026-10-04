@@ -127,6 +127,7 @@
             "copy_text": {
                 "continue": "Continue",
                 "documentation": "documentation",
+                "copy": "Copy",
                 "failed_to_copy": "Failed to copy text to clipboard",
                 "https_required": "because HTTPS is required",
                 "learn_more": "Learn more in our"
