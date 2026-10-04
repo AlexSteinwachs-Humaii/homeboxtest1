@@ -23,6 +23,9 @@
         "page_eyebrow": "Manage / {name}",
         "page_subtitle": "Manage your collection, its members and preferences.",
         "sections": "Collection administration",
+        "settings_retry": "Try again",
+        "settings_subtitle": "Choose a name and currency format for {name}.",
+        "settings_title": "Collection settings",
         "members": {
             "cannot_remove_last": "You cannot remove the last member.",
             "email": "Email",
@@ -42,6 +45,7 @@
         },
         "no_invites": "No invites",
         "remaining_uses": "Remaining uses",
+        "update_collection": "Update Collection",
         "tabs": {
             "entity_types": "Entity Types",
             "invites": "Invites",
