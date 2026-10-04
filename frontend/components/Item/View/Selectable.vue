@@ -55,7 +55,10 @@
     <MaintenanceEditModal />
     <ItemChangeDetails />
 
-    <BaseSectionHeader class="flex items-center justify-between" :class="{ 'mb-2 mt-4': !externalPagination }">
+    <BaseSectionHeader
+      class="flex flex-wrap items-center justify-between gap-2"
+      :class="{ 'mb-2 mt-4': !externalPagination }"
+    >
       <div class="flex gap-2 text-nowrap">
         {{ $t("components.item.view.selectable.items") }}
         <Badge v-if="!externalPagination">

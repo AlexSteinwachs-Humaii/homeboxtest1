@@ -975,7 +975,7 @@
   html, body {
     @apply bg-background text-foreground;
     width: 100%;
-    overflow-x: hidden;
+    max-width: 100%;
   }
 }
 
@@ -1179,6 +1179,47 @@ html[data-theme="homebox"] body {
 .glass-nav {
   background-color: hsl(var(--secondary));
   color: hsl(var(--secondary-foreground));
+  min-width: 0;
+  max-width: 100%;
+}
+
+/*
+ * Shell bounds. Do not hide overflow on the document: clipped nav would look
+ * fine and still be unreachable. The shell itself stays within the viewport,
+ * and the mobile drawer scrolls inside a dvh-sized sheet.
+ */
+.glass-shell {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.glass-shell > main,
+.glass-shell main {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.glass-shell [data-sidebar="content"] {
+  overflow: auto;
+}
+
+[data-mobile="true"][data-sidebar="sidebar"] {
+  width: min(18rem, calc(100vw - 1rem));
+  max-width: calc(100vw - 1rem);
+  height: 100dvh;
+  max-height: 100dvh;
+}
+
+.toaster,
+[data-sonner-toaster] {
+  width: min(24rem, calc(100vw - 1rem)) !important;
+  max-width: calc(100vw - 1rem) !important;
+}
+
+.toaster [data-sonner-toast],
+[data-sonner-toaster] [data-sonner-toast] {
+  max-width: calc(100vw - 1rem);
 }
 
 html[data-theme="homebox"] .glass-nav,
@@ -1267,10 +1308,12 @@ html[data-theme="homebox"][data-glass-effects="off"] body {
   html[data-theme="homebox"] [data-sidebar="sidebar"],
   html[data-theme="homebox"] .glass-nav,
   html[data-theme="homebox"] .glass-search,
-  html[data-theme="homebox"] .glass-action-surface {
+  html[data-theme="homebox"] .glass-action-surface,
+  html[data-theme="homebox"] .glass-tabs {
     background-color: hsl(var(--glass-fallback));
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+    background-attachment: scroll;
   }
 
   html[data-theme="homebox"],
@@ -1288,14 +1331,22 @@ html[data-theme="homebox"][data-glass-effects="off"] body {
     background-color: hsl(var(--glass-fallback));
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+    background-attachment: scroll;
+  }
+
+  html[data-theme="homebox"],
+  html[data-theme="homebox"] body {
+    background-attachment: scroll;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html[data-theme="homebox"] .glass-nav,
-  html[data-theme="homebox"] [data-sidebar="sidebar"],
-  html[data-theme="homebox"] .glass-shell [data-sidebar="menu-button"] {
-    transition: none;
+  html[data-theme="homebox"] .glass-shell,
+  html[data-theme="homebox"] .glass-shell * {
+    transition: none !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
   }
 
   html[data-theme="homebox"],

@@ -47,7 +47,7 @@
                 </span>
               </SidebarMenuButton>
             </DropdownMenuTrigger>
-            <DropdownMenuContent class="z-40 min-w-[var(--reka-dropdown-menu-trigger-width)]">
+            <DropdownMenuContent class="min-w-[var(--reka-dropdown-menu-trigger-width)]">
               <DropdownMenuItem
                 v-for="btn in dropdown"
                 :key="btn.id"
@@ -154,13 +154,14 @@
         <div class="relative flex h-full min-w-0 flex-col justify-center">
           <!-- Height is --header-height (4rem). Edit sticky bars offset by the same variables. -->
           <header
-            class="glass-nav sticky top-0 z-20 flex h-16 min-h-16 items-center gap-2 px-3"
+            class="glass-nav sticky top-0 z-20 flex h-16 min-h-16 min-w-0 max-w-full items-center gap-2 px-3"
             data-testid="shell-header"
           >
             <SidebarTrigger variant="default" />
             <NuxtLink
               class="glass-brand glass-focus flex size-11 min-h-11 min-w-11 items-center justify-center max-[359px]:hidden md:hidden"
               to="/home"
+              data-testid="shell-home-mark"
               :aria-label="$t('menu.home')"
             >
               <AppLogo class="size-8" />

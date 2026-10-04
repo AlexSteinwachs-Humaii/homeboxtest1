@@ -222,7 +222,7 @@
       </Card>
 
       <div class="my-3 flex flex-wrap items-center justify-between gap-2">
-        <ButtonGroup>
+        <ButtonGroup class="flex max-w-full flex-wrap">
           <Button
             v-for="tab in tabs"
             :key="tab.id"

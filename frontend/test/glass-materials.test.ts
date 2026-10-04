@@ -138,6 +138,12 @@ describe("glass v5 materials", () => {
     expect(css).toContain("@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)))");
     expect(css).toContain("prefers-reduced-transparency");
     expect(css).toContain("prefers-reduced-motion");
+    expect(css).toContain("background-attachment: scroll");
+    expect(css).not.toContain("overflow-x: hidden");
+    expect(css).toContain('[data-mobile="true"][data-sidebar="sidebar"]');
+    expect(css).toContain("height: 100dvh");
+    expect(read("layouts/default.vue")).toContain('data-testid="shell-home-mark"');
+    expect(read("layouts/default.vue")).not.toContain("z-40 min-w-[var(--reka-dropdown-menu-trigger-width)]");
     expect(css).toContain(".glass-panel");
     expect(css).toContain(".glass-field");
     expect(css).toContain(".glass-tabs");

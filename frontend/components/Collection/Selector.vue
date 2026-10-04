@@ -13,6 +13,8 @@
         "
         :aria-label="t('components.collection.selector.select_collection')"
         :title="t('components.collection.selector.select_collection')"
+        @keydown.enter.prevent="open = !open"
+        @keydown.space.prevent="open = !open"
       >
         <template v-if="sidebar.state.value === 'collapsed'">
           <MdiHomeGroup class="size-5" />

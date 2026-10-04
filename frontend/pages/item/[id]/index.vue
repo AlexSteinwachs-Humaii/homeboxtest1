@@ -661,7 +661,7 @@
             >
               <MdiPackageVariant class="size-7" />
             </div>
-            <div>
+            <div class="min-w-0 max-w-full flex-1">
               <Breadcrumb v-if="fullpath && fullpath.length > 0">
                 <BreadcrumbList>
                   <BreadcrumbItem v-for="(part, idx) in fullpath" :key="part.id">
@@ -699,7 +699,7 @@
                 </div>
               </div>
             </div>
-            <div class="ml-auto mt-2 flex flex-wrap items-center justify-between gap-2">
+            <div class="ml-auto mt-2 flex max-w-full flex-wrap items-center justify-end gap-2">
               <LabelMaker
                 v-if="typeof item.assetId === 'string' && item.assetId != ''"
                 :id="item.assetId"
@@ -744,7 +744,7 @@
       </Card>
 
       <div class="mb-6 mt-3 flex flex-wrap items-center justify-between">
-        <ButtonGroup>
+        <ButtonGroup class="flex max-w-full flex-wrap">
           <Button
             v-for="tab in tabs"
             :key="tab.id"
