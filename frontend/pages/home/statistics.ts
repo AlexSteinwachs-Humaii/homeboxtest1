@@ -1,4 +1,4 @@
-import { computed, watch } from "vue";
+import { computed, onMounted, watch } from "vue";
 import { useCollections } from "~~/composables/use-collections";
 import { resetCurrency, setCurrency } from "~~/composables/use-formatters";
 import { ServerEvent, onServerEvent } from "~~/composables/use-server-events";
@@ -11,8 +11,14 @@ import { classifyOverview, loadCollectionOverview, resolveActiveCollectionId, ty
  * Failed requests stay errors — they are not coerced into an empty inventory.
  */
 export function useHomeOverview() {
-  const { selectedId } = useCollections();
+  const { selectedId, load } = useCollections();
   const prefs = useViewPreferences();
+
+  // The collection selector lives in the sidebar, which is not mounted on a
+  // phone until the drawer opens. Home still has to know which collection it is.
+  onMounted(() => {
+    void load();
+  });
 
   const resolution = computed(() => resolveActiveCollectionId(selectedId.value, prefs.value.collectionId));
   const activeId = computed(() => (resolution.value.status === "ready" ? resolution.value.id : null));

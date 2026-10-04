@@ -522,6 +522,15 @@
         "recent_loading": "Loading recently added items…",
         "recent_error": "Could not load recently added items.",
         "recent_empty": "Nothing has been added yet.",
+        "location_loading": "Loading storage locations…",
+        "location_error": "Could not load storage locations.",
+        "location_empty": "No storage locations yet.",
+        "location_empty_count": "No items yet",
+        "location_items": "{count, plural, one {{count} item} other {{count} items}}",
+        "tags_loading": "Loading tags…",
+        "tags_error": "Could not load tags.",
+        "tags_empty": "No tags yet.",
+        "tags_all": "All {count}",
         "no_photo": "No photo",
         "qty": "Qty {count}",
         "unnamed": "Unnamed item"
@@ -740,6 +749,7 @@
         "expand_tree": "Expand Tree",
         "hide_items": "Hide Items",
         "location_items_delete_confirm": "Are you sure you want to delete this location and all of its items? This action cannot be undone.",
+        "empty_items": "This location has no items yet.",
         "no_results": "No Locations Found",
         "show_items": "Show Items",
         "toast": {
