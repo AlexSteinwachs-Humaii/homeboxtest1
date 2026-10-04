@@ -2,7 +2,14 @@
   <TooltipProvider :delay-duration="0">
     <Tooltip>
       <TooltipTrigger as-child>
-        <Button size="icon" variant="outline" class="relative" @click="copyText">
+        <Button
+          type="button"
+          :size="size"
+          variant="outline"
+          class="glass-focus relative shrink-0"
+          :aria-label="tooltip || $t('components.global.copy_text.copy')"
+          @click="copyText"
+        >
           <div
             :data-copied="copied"
             class="group absolute inset-0 flex items-center justify-center transition-transform duration-300 data-[copied=true]:rotate-[360deg]"
@@ -83,6 +90,11 @@
     tooltip: {
       type: String as () => string,
       default: "",
+    },
+    /** Defaults to the existing icon control so other callers stay the same size. */
+    size: {
+      type: String as () => "default" | "sm" | "lg" | "icon" | "touch" | "touch-icon",
+      default: "icon",
     },
   });
 

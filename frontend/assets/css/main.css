@@ -5,35 +5,50 @@
 @layer base {
   :root,.homebox {
     --background: 0 0% 100%;
-    --background-accent: 0 0% 81%;
-    --foreground: 0 0% 20%;
-    --primary: 139 16% 43%;
-    --primary-foreground: 139 100% 89%;
+    --background-accent: 150 24% 90%;
+    --foreground: 164 30% 14%;
+    --primary: 152 46% 26%;
+    --primary-foreground: 0 0% 100%;
     --secondary: 77 8% 17%;
     --secondary-foreground: 76 18% 83%;
-    --accent: 97 37% 93%;
-    --accent-foreground: 97 31% 19%;
-    --muted: 0 0% 90%;
-    --muted-foreground: 0 0% 20%;
+    --accent: 152 36% 88%;
+    --accent-foreground: 152 50% 22%;
+    --muted: 150 18% 92%;
+    --muted-foreground: 164 18% 28%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 20%;
+    --card-foreground: 164 30% 14%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 20%;
+    --popover-foreground: 164 30% 14%;
     --destructive: 0 91% 71%;
     --destructive-foreground: 0 100% 14%;
-    --input: 0 0% 81%;
-    --border: 0 0% 81%;
-    --ring: 139 16% 43%;
-    --sidebar-background: 0 0% 90%;
-    --sidebar-foreground: 0 0% 20%;
-    --sidebar-primary: 139 16% 43%;
-    --sidebar-primary-foreground: 139 100% 89%;
-    --sidebar-accent: 0 0% 81%;
-    --sidebar-accent-foreground: 0 0% 20%;
-    --sidebar-border: 0 0% 81%;
-    --sidebar-ring: 0 0% 81%;
+    /* Functional edges are darker than the artboard hairline so boundaries clear 3:1. */
+    --input: 164 14% 32%;
+    --border: 164 14% 32%;
+    --ring: 164 14% 32%;
+    --sidebar-background: 158 32% 96%;
+    --sidebar-foreground: 164 30% 14%;
+    --sidebar-primary: 152 46% 26%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 152 36% 88%;
+    --sidebar-accent-foreground: 152 50% 22%;
+    --sidebar-border: 164 14% 32%;
+    --sidebar-ring: 164 14% 32%;
 
-    --radius: 0.5rem;
+    --radius: 1.25rem;
+
+    /* Glass v5 materials. Visual effects are applied only for the homebox theme. */
+    --glass-sage: 150 32% 78%;
+    --glass-blue: 198 40% 80%;
+    --glass-lilac: 268 28% 82%;
+    --glass-ink: 164 30% 14%;
+    --glass-nav: 160 45% 97%;
+    --glass-nav-alpha: 0.82;
+    --glass-fallback: 158 28% 94%;
+    --glass-edge: 164 14% 32%;
+    --glass-touch: 2.75rem;
+    --glass-space-page: 1.5rem;
+    --glass-space-section: 1.75rem;
+    --glass-radius-control: 999px;
 }
 
   /*
@@ -960,7 +975,7 @@
   html, body {
     @apply bg-background text-foreground;
     width: 100%;
-    overflow-x: hidden;
+    max-width: 100%;
   }
 }
 
@@ -1045,9 +1060,13 @@
   font-weight: 700;
 }
 
+/*
+ * Shell header contract. Item and location edit sticky actions offset by these.
+ * Both are 4rem so the single-row Glass header does not cover Save on any breakpoint.
+ */
 :root {
   --header-height: 4rem;
-  --header-height-mobile: 7rem;
+  --header-height-mobile: 4rem;
 }
 
 /* Non-scoped styles for regular text */
@@ -1076,4 +1095,312 @@ h6 {
   overflow-wrap: anywhere;
   word-break: normal;
   hyphens: auto;
+}
+
+/*
+ * Glass v5 shared materials.
+ * Effects are limited to navigation and action surfaces on the homebox theme.
+ * Alternate .theme-* declarations are not overridden. Data panels and fields stay opaque.
+ * Blur is never animated and is removed entirely for reduced transparency,
+ * unsupported backdrop-filter, and html[data-glass-effects="off"].
+ */
+@layer components {
+  .glass-panel {
+    background-color: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+  }
+
+  .glass-field {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+
+  .glass-kicker {
+    color: hsl(var(--muted-foreground));
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .glass-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .glass-tabs > * {
+    min-height: var(--glass-touch);
+    min-width: var(--glass-touch);
+  }
+}
+
+html[data-theme="homebox"] .glass-panel,
+html:not([data-theme]) .glass-panel {
+  border: 1px solid hsl(var(--glass-edge));
+  border-radius: var(--radius);
+}
+
+html[data-theme="homebox"] .glass-field,
+html:not([data-theme]) .glass-field {
+  border-color: hsl(var(--glass-edge));
+  background-color: hsl(0 0% 100%);
+  color: hsl(var(--foreground));
+}
+
+html[data-theme="homebox"] .glass-field svg {
+  opacity: 1;
+  color: hsl(var(--glass-edge));
+}
+
+html[data-theme="homebox"] .glass-tabs {
+  border: 1px solid hsl(var(--glass-edge));
+  border-radius: var(--radius);
+  background-color: hsl(var(--glass-fallback));
+  padding: 0.5rem;
+}
+
+html[data-theme="homebox"],
+html[data-theme="homebox"] body {
+  background-color: hsl(var(--glass-fallback));
+  background-image: linear-gradient(
+    165deg,
+    hsl(var(--glass-sage)) 0%,
+    hsl(var(--glass-blue)) 46%,
+    hsl(var(--glass-lilac)) 100%
+  );
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  color: hsl(var(--foreground));
+  font-family: "Segoe UI", "Avenir Next", ui-sans-serif, system-ui, sans-serif;
+  min-height: 100%;
+}
+
+.glass-nav {
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+  min-width: 0;
+  max-width: 100%;
+}
+
+/*
+ * Shell bounds. Do not hide overflow on the document: clipped nav would look
+ * fine and still be unreachable. The shell itself stays within the viewport,
+ * and the mobile drawer scrolls inside a dvh-sized sheet.
+ */
+.glass-shell {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.glass-shell > main,
+.glass-shell main {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.glass-shell [data-sidebar="content"] {
+  overflow: auto;
+}
+
+[data-mobile="true"][data-sidebar="sidebar"] {
+  width: min(18rem, calc(100vw - 1rem));
+  max-width: calc(100vw - 1rem);
+  height: 100dvh;
+  max-height: 100dvh;
+}
+
+.toaster,
+[data-sonner-toaster] {
+  width: min(24rem, calc(100vw - 1rem)) !important;
+  max-width: calc(100vw - 1rem) !important;
+}
+
+.toaster [data-sonner-toast],
+[data-sonner-toaster] [data-sonner-toast] {
+  max-width: calc(100vw - 1rem);
+}
+
+html[data-theme="homebox"] .glass-nav,
+html[data-theme="homebox"] [data-sidebar="sidebar"] {
+  background-color: hsl(var(--glass-nav) / var(--glass-nav-alpha));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--glass-edge));
+  box-shadow: 0 8px 28px hsl(var(--glass-ink) / 0.08);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  backdrop-filter: blur(16px) saturate(1.2);
+}
+
+html[data-theme="homebox"] .glass-nav {
+  border-bottom: 1px solid hsl(var(--glass-edge));
+}
+
+html[data-theme="homebox"] [data-sidebar="sidebar"] {
+  border: 1px solid hsl(var(--glass-edge));
+}
+
+html[data-theme="homebox"] .glass-search {
+  min-height: var(--glass-touch);
+  border: 1px solid hsl(var(--glass-edge));
+  border-radius: var(--glass-radius-control);
+  background-color: hsl(var(--glass-nav) / 0.72);
+  color: hsl(var(--foreground));
+}
+
+html[data-theme="homebox"] .glass-action-surface {
+  border-color: hsl(var(--glass-edge));
+  background-color: hsl(var(--glass-nav) / 0.78);
+  color: hsl(var(--foreground));
+}
+
+html[data-theme="homebox"] .glass-brand .fill-secondary-foreground {
+  fill: hsl(var(--foreground));
+}
+
+html[data-theme="homebox"] [data-sidebar="menu-button"],
+html[data-theme="homebox"] [data-sidebar="trigger"],
+html[data-theme="homebox"] .glass-touch {
+  min-height: var(--glass-touch);
+  min-width: var(--glass-touch);
+}
+
+html[data-theme="homebox"] [data-sidebar="menu-button"] {
+  border-radius: var(--glass-radius-control);
+}
+
+html[data-theme="homebox"] [data-sidebar="menu-button"].bg-accent,
+html[data-theme="homebox"] [data-sidebar="menu-button"][data-active="true"] {
+  box-shadow: inset 0 0 0 2px hsl(var(--glass-edge));
+}
+
+html[data-theme="homebox"] .glass-focus:focus-visible,
+html[data-theme="homebox"] [data-sidebar="menu-button"]:focus-visible,
+html[data-theme="homebox"] [data-sidebar="trigger"]:focus-visible,
+html[data-theme="homebox"] .glass-search:focus-visible {
+  outline: 2px solid hsl(var(--glass-edge));
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px hsl(0 0% 100%);
+}
+
+html[data-theme="homebox"] [role="menuitem"]:focus-visible,
+html[data-theme="homebox"] [role="option"][data-highlighted] {
+  box-shadow: inset 0 0 0 2px hsl(var(--glass-edge));
+}
+
+html[data-theme="homebox"][data-glass-effects="off"] [data-sidebar="sidebar"],
+html[data-theme="homebox"][data-glass-effects="off"] .glass-nav,
+html[data-theme="homebox"][data-glass-effects="off"] .glass-search,
+html[data-theme="homebox"][data-glass-effects="off"] .glass-action-surface,
+html[data-theme="homebox"][data-glass-effects="off"] .glass-tabs {
+  background-color: hsl(var(--glass-fallback));
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background-attachment: scroll;
+}
+
+html[data-theme="homebox"][data-glass-effects="off"],
+html[data-theme="homebox"][data-glass-effects="off"] body {
+  background-attachment: scroll;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  html[data-theme="homebox"] [data-sidebar="sidebar"],
+  html[data-theme="homebox"] .glass-nav,
+  html[data-theme="homebox"] .glass-search,
+  html[data-theme="homebox"] .glass-action-surface,
+  html[data-theme="homebox"] .glass-tabs {
+    background-color: hsl(var(--glass-fallback));
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background-attachment: scroll;
+  }
+
+  html[data-theme="homebox"],
+  html[data-theme="homebox"] body {
+    background-attachment: scroll;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  html[data-theme="homebox"] [data-sidebar="sidebar"],
+  html[data-theme="homebox"] .glass-nav,
+  html[data-theme="homebox"] .glass-search,
+  html[data-theme="homebox"] .glass-action-surface,
+  html[data-theme="homebox"] .glass-tabs {
+    background-color: hsl(var(--glass-fallback));
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background-attachment: scroll;
+  }
+
+  html[data-theme="homebox"],
+  html[data-theme="homebox"] body {
+    background-attachment: scroll;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="homebox"] .glass-shell,
+  html[data-theme="homebox"] .glass-shell * {
+    transition: none !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+
+  html[data-theme="homebox"],
+  html[data-theme="homebox"] body {
+    background-attachment: scroll;
+  }
+}
+
+/*
+ * Administration selector. Unlayered so display:grid wins over layered
+ * .glass-tabs { display: flex }. Three columns at tablet (two rows of six),
+ * two at phone width, one when a row would clip labels.
+ */
+.collection-admin-nav {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 520px) {
+  .collection-admin-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 340px) {
+  .collection-admin-nav {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.collection-admin-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-height: 2.75rem;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 999px;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+  color: inherit;
+}
+
+.collection-admin-link[aria-current="page"] {
+  background-color: hsl(var(--card));
+  color: hsl(var(--primary));
+  box-shadow: inset 0 0 0 2px hsl(var(--ring));
 }

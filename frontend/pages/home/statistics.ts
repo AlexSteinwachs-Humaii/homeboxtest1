@@ -1,48 +1,83 @@
-import { useI18n } from "vue-i18n";
-import type { UserClient } from "~~/lib/api/user";
+import { computed, onMounted, watch } from "vue";
+import { useCollections } from "~~/composables/use-collections";
+import { resetCurrency, setCurrency } from "~~/composables/use-formatters";
+import { ServerEvent, onServerEvent } from "~~/composables/use-server-events";
+import { useViewPreferences } from "~~/composables/use-preferences";
+import { classifyOverview, loadCollectionOverview, resolveActiveCollectionId, type OverviewLoad } from "./overview";
 
-type StatCard = {
-  label: string;
-  value: number;
-  type: "currency" | "number";
-};
+/**
+ * Live collection identity and statistics for My Home.
+ * Keyed by collection so a switch cannot reuse another collection's payload.
+ * Failed requests stay errors — they are not coerced into an empty inventory.
+ */
+export function useHomeOverview() {
+  const { selectedId, load } = useCollections();
+  const prefs = useViewPreferences();
 
-export function statCardData(api: UserClient) {
-  const { t } = useI18n();
+  // The collection selector lives in the sidebar, which is not mounted on a
+  // phone until the drawer opens. Home still has to know which collection it is.
+  onMounted(() => {
+    void load();
+  });
 
-  const { data: statistics } = useAsyncData(
-    "statistics",
+  const resolution = computed(() => resolveActiveCollectionId(selectedId.value, prefs.value.collectionId));
+  const activeId = computed(() => (resolution.value.status === "ready" ? resolution.value.id : null));
+
+  const { data, status, error, refresh } = useAsyncData(
+    () => `home-overview:${activeId.value ?? resolution.value.status}`,
     async () => {
-      const { data } = await api.stats.group();
-      return data;
+      const current = resolveActiveCollectionId(selectedId.value, prefs.value.collectionId);
+      if (current.status !== "ready") {
+        return null;
+      }
+      const api = useUserApi();
+      return loadCollectionOverview(api, current.id);
     },
     {
-      deep: true,
+      watch: [selectedId, () => prefs.value.collectionId],
+      // Never reuse a payload from another key or a previous navigation.
+      getCachedData: () => undefined,
     }
   );
 
-  return computed(() => {
-    return [
-      {
-        label: t("home.total_value"),
-        value: statistics.value?.totalItemPrice || 0,
-        type: "currency",
-      },
-      {
-        label: t("home.total_items"),
-        value: statistics.value?.totalItems || 0,
-        type: "number",
-      },
-      {
-        label: t("home.total_locations"),
-        value: statistics.value?.totalLocations || 0,
-        type: "number",
-      },
-      {
-        label: t("home.total_tags"),
-        value: statistics.value?.totalTags || 0,
-        type: "number",
-      },
-    ] as StatCard[];
+  const view = computed(() =>
+    classifyOverview({
+      resolution: resolution.value,
+      pending: status.value === "pending" || status.value === "idle",
+      failed: status.value === "error" || error.value != null,
+      load: (data.value as OverviewLoad | null) ?? null,
+    })
+  );
+
+  watch(activeId, (id, previous) => {
+    if (id !== previous) {
+      resetCurrency();
+    }
   });
+
+  watch(
+    () => view.value.identity?.currency ?? "",
+    currency => {
+      if (currency) {
+        setCurrency(currency);
+      }
+    }
+  );
+
+  const refreshOverview = () => {
+    void refresh();
+  };
+
+  onServerEvent(ServerEvent.EntityMutation, refreshOverview);
+  onServerEvent(ServerEvent.TagMutation, refreshOverview);
+  onServerEvent(ServerEvent.ImportMutation, refreshOverview);
+
+  return {
+    resolution,
+    activeId,
+    phase: computed(() => view.value.phase),
+    identity: computed(() => view.value.identity),
+    stats: computed(() => view.value.stats),
+    refresh,
+  };
 }

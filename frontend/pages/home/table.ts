@@ -1,29 +1,72 @@
-import type { UserClient } from "~~/lib/api/user";
+import { computed } from "vue";
+import { useCollections } from "~~/composables/use-collections";
+import { getLocaleCode } from "~~/composables/use-formatters";
+import { ServerEvent, onServerEvent } from "~~/composables/use-server-events";
+import { useViewPreferences } from "~~/composables/use-preferences";
+import { resolveActiveCollectionId, type CollectionResolution } from "./overview";
+import { classifyRecent, loadRecentItems, presentRecentItems, type RecentLoad } from "./recent";
 
-export function itemsTable(api: UserClient) {
-  const { data: items, refresh } = useAsyncData(
-    "items",
+/**
+ * The three newest items for My Home.
+ * Keyed by collection so a switch cannot reuse another collection's cards.
+ * Failed requests stay errors — they are not coerced into an empty list.
+ * The items client uses the preference tenant; a selector/preference mismatch is not rendered.
+ */
+export function useHomeRecent(currency: () => string) {
+  const { selectedId } = useCollections();
+  const prefs = useViewPreferences();
+
+  const resolution = computed(() => resolveActiveCollectionId(selectedId.value, prefs.value.collectionId));
+  const activeId = computed(() => (resolution.value.status === "ready" ? resolution.value.id : null));
+
+  const { data, status, error, refresh } = useAsyncData(
+    () => `home-recent:${activeId.value ?? resolution.value.status}`,
     async () => {
-      const { data } = await api.items.getAll({
-        page: 1,
-        pageSize: 5,
-        orderBy: "createdAt",
-      });
-      return data.items;
+      const current: CollectionResolution = resolveActiveCollectionId(selectedId.value, prefs.value.collectionId);
+      if (current.status !== "ready") {
+        return null;
+      }
+      const api = useUserApi();
+      return loadRecentItems(api, current.id);
     },
     {
-      deep: true,
+      watch: [selectedId, () => prefs.value.collectionId],
+      getCachedData: () => undefined,
     }
   );
 
-  onServerEvent(ServerEvent.EntityMutation, () => {
-    console.log("entity mutation");
-    refresh();
+  const phase = computed(() =>
+    classifyRecent({
+      resolution: resolution.value,
+      pending: status.value === "pending" || status.value === "idle",
+      failed: status.value === "error" || error.value != null,
+      load: (data.value as RecentLoad | null) ?? null,
+    })
+  );
+
+  const cards = computed(() => {
+    if (phase.value !== "ready") {
+      return [];
+    }
+    const load = data.value as RecentLoad | null;
+    if (!load?.ok) {
+      return [];
+    }
+    return presentRecentItems(load.items, currency(), getLocaleCode());
   });
 
-  return computed(() => {
-    return {
-      items: items.value || [],
-    };
-  });
+  const refreshRecent = () => {
+    void refresh();
+  };
+
+  onServerEvent(ServerEvent.EntityMutation, refreshRecent);
+  onServerEvent(ServerEvent.ImportMutation, refreshRecent);
+
+  return {
+    resolution,
+    activeId,
+    phase,
+    cards,
+    refresh,
+  };
 }

@@ -7,6 +7,7 @@
   defineProps<{
     table: TableType<EntitySummary>;
     columns: ColumnDef<EntitySummary, TValue>[];
+    presentation?: "default" | "search";
   }>();
 
   const ariaSort = (column: Column<EntitySummary, unknown>) => {
@@ -63,7 +64,7 @@
           </TableRow>
         </template>
       </template>
-      <template v-else>
+      <template v-else-if="presentation !== 'search'">
         <TableRow>
           <TableCell :colspan="columns.length" class="h-24 text-center">
             <p>{{ $t("items.no_results") }}</p>

@@ -1,5 +1,175 @@
 <template>
-  <Card class="relative overflow-hidden">
+  <NuxtLink
+    v-if="variant === 'overview' && detail"
+    :to="detail.href"
+    class="glass-focus glass-panel flex min-h-11 min-w-0 flex-col overflow-hidden rounded-lg text-foreground shadow"
+    data-testid="home-recent-card"
+    :aria-label="detail.name || $t('home.unnamed')"
+  >
+    <div class="relative h-36 w-full shrink-0 bg-secondary">
+      <img
+        v-if="overviewPhoto && !photoFailed"
+        class="size-full object-cover"
+        loading="lazy"
+        :src="overviewPhoto"
+        :alt="detail.name"
+        data-testid="home-recent-photo"
+        @error="photoFailed = true"
+      />
+      <div
+        v-else
+        class="flex h-full flex-col items-center justify-center gap-1 px-3 text-secondary-foreground"
+        data-testid="home-recent-no-photo"
+      >
+        <svg class="size-8" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.5" />
+          <circle cx="9" cy="10" r="1.5" fill="currentColor" />
+          <path d="M4 16l4.5-3.5 3 2.5 3-2 5.5 4" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+        </svg>
+        <span class="text-xs">{{ $t("home.no_photo") }}</span>
+      </div>
+    </div>
+    <div class="flex min-w-0 grow flex-col gap-1 p-3">
+      <h2
+        class="line-clamp-2 min-w-0 text-base font-semibold leading-snug"
+        data-testid="home-recent-name"
+        :title="detail.name || undefined"
+      >
+        <template v-if="detail.name">{{ detail.name }}</template>
+        <span v-else class="font-normal text-muted-foreground">{{ $t("home.unnamed") }}</span>
+      </h2>
+      <p
+        v-if="detail.assetId || detail.quantity !== null"
+        class="truncate text-xs text-muted-foreground"
+        data-testid="home-recent-meta"
+      >
+        <span v-if="detail.assetId" data-testid="home-recent-asset">{{ detail.assetId }}</span>
+        <span v-if="detail.assetId && detail.quantity !== null"> · </span>
+        <span v-if="detail.quantity !== null" data-testid="home-recent-qty">
+          {{ $t("home.qty", { count: detail.quantity }) }}
+        </span>
+      </p>
+      <div class="mt-auto flex min-w-0 items-center gap-2 pt-1">
+        <span
+          v-if="detail.location"
+          class="min-w-0 truncate rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground"
+          data-testid="home-recent-location"
+          :title="detail.location"
+        >
+          {{ detail.location }}
+        </span>
+        <span
+          v-if="detail.value"
+          class="ml-auto shrink-0 text-sm font-medium tabular-nums"
+          data-testid="home-recent-value"
+        >
+          {{ detail.value }}
+        </span>
+      </div>
+    </div>
+  </NuxtLink>
+  <article
+    v-else-if="variant === 'search' && searchCard"
+    class="glass-panel flex min-w-0 flex-col overflow-hidden rounded-lg text-foreground shadow"
+    data-variant="search"
+    data-testid="search-result-card"
+  >
+    <div class="flex h-12 shrink-0 items-center border-b border-border/70" data-testid="search-selection-strip">
+      <div v-if="tableRow" class="relative size-12 shrink-0">
+        <Checkbox
+          class="glass-focus absolute inset-0 size-12 rounded-md border-transparent bg-transparent shadow-none hover:bg-secondary/50 data-[state=checked]:bg-transparent data-[state=checked]:text-foreground"
+          :model-value="tableRow.getIsSelected()"
+          :aria-label="$t('items.search_card_select', { name: searchCard.name || $t('home.unnamed') })"
+          data-testid="search-card-select"
+          @update:model-value="setSearchSelected"
+          @click.stop
+        />
+        <span class="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden="true">
+          <span
+            class="flex size-5 items-center justify-center rounded-sm border border-primary bg-background text-primary-foreground"
+            :class="tableRow.getIsSelected() ? 'bg-primary' : ''"
+          >
+            <svg v-if="tableRow.getIsSelected()" class="size-3.5" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M5 12.5l4.2 4.2L19 7.5"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
+        </span>
+      </div>
+      <span v-else class="size-12 shrink-0" data-testid="search-card-select-spacer" aria-hidden="true" />
+      <span
+        class="ml-auto min-w-0 truncate px-3 text-xs tabular-nums text-muted-foreground"
+        data-testid="search-card-asset"
+      >
+        {{ searchCard.assetId }}
+      </span>
+    </div>
+    <NuxtLink
+      :to="searchCard.href"
+      class="glass-focus flex min-w-0 flex-col text-foreground"
+      data-testid="search-card-link"
+    >
+      <div class="relative h-36 w-full shrink-0 bg-secondary">
+        <img
+          v-if="searchPhoto && !photoFailed"
+          class="size-full object-cover"
+          loading="lazy"
+          :src="searchPhoto"
+          alt=""
+          data-testid="search-card-photo"
+          @error="photoFailed = true"
+        />
+        <div
+          v-else
+          class="flex h-full flex-col items-center justify-center gap-1 px-3 text-secondary-foreground"
+          data-testid="search-card-no-photo"
+        >
+          <svg class="size-8" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.5" />
+            <circle cx="9" cy="10" r="1.5" fill="currentColor" />
+            <path d="M4 16l4.5-3.5 3 2.5 3-2 5.5 4" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+          </svg>
+          <span class="text-xs">{{ $t("home.no_photo") }}</span>
+        </div>
+      </div>
+      <div class="flex min-w-0 grow flex-col gap-1 p-3">
+        <h2 class="line-clamp-2 min-w-0 text-base font-semibold leading-snug" data-testid="search-card-name">
+          <template v-if="searchCard.name">{{ searchCard.name }}</template>
+          <span v-else class="font-normal text-muted-foreground">{{ $t("home.unnamed") }}</span>
+        </h2>
+        <div class="flex items-start justify-between gap-3 text-sm text-muted-foreground">
+          <span v-if="searchCard.quantity !== null" data-testid="search-card-quantity">
+            {{ $t("items.search_card_quantity", { count: searchCard.quantity }) }}
+          </span>
+          <span class="ml-auto shrink-0 text-right text-foreground" data-testid="search-card-insurance">
+            {{ searchCard.insured ? $t("items.search_card_insured") : $t("items.search_card_not_insured") }}
+          </span>
+        </div>
+        <div class="mt-auto flex min-w-0 items-center gap-2 pt-1">
+          <span
+            v-if="searchCard.location"
+            class="min-w-0 truncate rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground"
+            data-testid="search-card-location"
+          >
+            {{ searchCard.location }}
+          </span>
+          <span
+            v-if="searchCard.purchasePrice !== null"
+            class="ml-auto shrink-0 text-sm font-medium tabular-nums text-foreground"
+            data-testid="search-card-value"
+          >
+            <Currency :amount="searchCard.purchasePrice" />
+          </span>
+        </div>
+      </div>
+    </NuxtLink>
+  </article>
+  <Card v-else-if="item && variant !== 'search'" class="relative overflow-hidden" data-variant="default">
     <div v-if="tableRow" class="absolute left-1 top-1 z-10">
       <Checkbox
         class="size-5 bg-accent hover:bg-background-accent"
@@ -88,12 +258,26 @@
   import TagChip from "@/components/Tag/Chip.vue";
   import type { Row } from "@tanstack/vue-table";
   import { Checkbox } from "@/components/ui/checkbox";
+  import Currency from "@/components/global/Currency.vue";
+  import { presentSearchCard } from "@/components/Item/View/search-card";
+
+  import { ref, watch } from "vue";
+
+  type OverviewDetail = {
+    href: string;
+    name: string;
+    assetId: string | null;
+    quantity: number | null;
+    location: string | null;
+    value: string | null;
+    photo: { kind: "none" } | { kind: "upload"; path: string };
+  };
 
   const api = useUserApi();
   const preferences = useViewPreferences();
 
   const imageUrl = computed(() => {
-    if (!props.item.imageId) {
+    if (!props.item?.imageId) {
       return "/no-image.jpg";
     }
     if (props.item.thumbnailId) {
@@ -104,13 +288,24 @@
   });
 
   const itemTags = computed(() => {
-    return useTagStore().withAncestors(props.item.tags);
+    return props.item ? useTagStore().withAncestors(props.item.tags) : [];
   });
 
   const props = defineProps({
     item: {
       type: Object as () => EntityOut | EntitySummary,
-      required: true,
+      required: false,
+      default: undefined,
+    },
+    variant: {
+      type: String as () => "default" | "overview" | "search",
+      required: false,
+      default: "default",
+    },
+    detail: {
+      type: Object as () => OverviewDetail,
+      required: false,
+      default: undefined,
     },
     locationFlatTree: {
       type: Array as () => FlatTreeItem[],
@@ -124,10 +319,40 @@
     },
   });
 
+  const photoFailed = ref(false);
+  watch(
+    () => [props.detail?.photo, props.item?.id, props.item?.imageId, props.item?.thumbnailId],
+    () => {
+      photoFailed.value = false;
+    }
+  );
+
+  const searchCard = computed(() => (props.variant === "search" && props.item ? presentSearchCard(props.item) : null));
+
+  function setSearchSelected(value: boolean | "indeterminate") {
+    props.tableRow?.toggleSelected(value === true);
+  }
+
+  const overviewPhoto = computed(() => {
+    const photo = props.detail?.photo;
+    if (!photo || photo.kind !== "upload" || !photo.path.startsWith("/entities/")) {
+      return "";
+    }
+    return api.authURL(photo.path);
+  });
+
+  const searchPhoto = computed(() => {
+    const photo = searchCard.value?.photo;
+    if (!photo || photo.kind !== "upload" || !photo.path.startsWith("/entities/")) {
+      return "";
+    }
+    return api.authURL(photo.path);
+  });
+
   const objectContain = computed(() => imageUrl.value !== "/no-image.jpg" && !preferences.value.legacyImageFit);
 
   const locationString = computed(
-    () => props.locationFlatTree.find(l => l.id === props.item.parent?.id)?.treeString || props.item.parent?.name
+    () => props.locationFlatTree.find(l => l.id === props.item?.parent?.id)?.treeString || props.item?.parent?.name
   );
 </script>
 

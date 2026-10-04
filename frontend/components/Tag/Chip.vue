@@ -5,9 +5,16 @@
   import { getIconComponent } from "~/lib/icons";
 
   export type sizes = "sm" | "md" | "lg" | "xl";
+  /** Chip only reads id, name, color and icon. Home can pass a live tag without the rest of TagOut. */
+  export type TagChipTag = {
+    id: string;
+    name: string;
+    color?: string;
+    icon?: string;
+  };
   const props = defineProps({
     tag: {
-      type: Object as () => TagOut | TagSummary,
+      type: Object as () => TagOut | TagSummary | TagChipTag,
       required: true,
     },
     size: {

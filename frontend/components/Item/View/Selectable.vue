@@ -10,6 +10,7 @@
   import { makeColumns } from "./table/columns";
   import { useI18n } from "vue-i18n";
   import type { Pagination } from "./pagination";
+  import type { SearchResultPhase } from "./search-pagination";
   import MaintenanceEditModal from "@/components/Maintenance/EditModal.vue";
   import ItemChangeDetails from "./ItemChangeDetails.vue";
 
@@ -19,6 +20,10 @@
     locationFlatTree?: FlatTreeItem[];
     pagination?: Pagination;
     disableSort?: boolean;
+    /** Search owns heading, count and view controls. Other lists keep this header. */
+    presentation?: "default" | "search";
+    lockPageSize?: boolean;
+    resultPhase?: SearchResultPhase;
   }>();
 
   const emit = defineEmits<{
@@ -55,7 +60,11 @@
     <MaintenanceEditModal />
     <ItemChangeDetails />
 
-    <BaseSectionHeader class="flex items-center justify-between" :class="{ 'mb-2 mt-4': !externalPagination }">
+    <BaseSectionHeader
+      v-if="presentation !== 'search'"
+      class="flex flex-wrap items-center justify-between gap-2"
+      :class="{ 'mb-2 mt-4': !externalPagination }"
+    >
       <div class="flex gap-2 text-nowrap">
         {{ $t("components.item.view.selectable.items") }}
         <Badge v-if="!externalPagination">
@@ -88,8 +97,17 @@
         </div>
       </template>
     </BaseSectionHeader>
+    <div
+      v-else
+      id="selectable-subtitle"
+      class="mb-3 flex min-h-11 min-w-0 flex-wrap items-center gap-2"
+      :class="{ hidden: !preferences.quickActions.enabled }"
+    />
 
-    <p v-if="externalPagination && pagination!.totalSize > 0" class="mb-4 flex items-center text-base font-medium">
+    <p
+      v-if="presentation !== 'search' && externalPagination && pagination!.totalSize > 0"
+      class="mb-4 flex items-center text-base font-medium"
+    >
       {{ $t("items.results", { total: pagination!.totalSize }) }}
       <span class="ml-auto text-base">
         {{
@@ -103,10 +121,13 @@
 
     <DataTable
       :view="itemView"
+      :presentation="presentation"
       :columns="preferences.quickActions.enabled ? columns : columns.filter(c => c.enableHiding !== false)"
       :data="items"
       :location-flat-tree="locationFlatTree"
       :external-pagination="pagination"
+      :lock-page-size="lockPageSize"
+      :result-phase="resultPhase"
       @refresh="$emit('refresh')"
     />
   </section>

@@ -341,9 +341,12 @@
         </div>
       </BaseCard>
 
-      <!-- Items in this location -->
-      <section v-if="location && items">
-        <ItemViewSelectable :items="items" @refresh="refreshItemList" />
+      <!-- Items in this location. An empty array is a real empty location, not a missing page. -->
+      <section v-if="location && items" class="mt-4">
+        <p v-if="items.length === 0" class="text-sm text-muted-foreground" data-testid="location-items-empty">
+          {{ $t("locations.empty_items") }}
+        </p>
+        <ItemViewSelectable v-else :items="items" @refresh="refreshItemList" />
       </section>
 
       <!-- Child locations -->

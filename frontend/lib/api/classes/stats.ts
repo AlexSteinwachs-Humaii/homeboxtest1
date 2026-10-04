@@ -19,12 +19,19 @@ export class StatsAPI extends BaseAPI {
   }
 
   /**
-   * Returns ths general statistics for the group. This mostly just
+   * Returns the general statistics for the group. This mostly just
    * includes the totals for various group properties.
+   * Pass groupId to read a specific collection; otherwise the client tenant is used.
    */
-  group() {
+  group(groupId?: string) {
+    const headers = groupId
+      ? {
+          "X-Tenant": groupId,
+        }
+      : undefined;
     return this.http.get<GroupStatistics>({
       url: route("/groups/statistics"),
+      headers,
     });
   }
 

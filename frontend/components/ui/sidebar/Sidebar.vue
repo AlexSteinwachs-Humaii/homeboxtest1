@@ -31,12 +31,12 @@
       data-sidebar="sidebar"
       data-mobile="true"
       :side="side"
-      class="bg-sidebar text-sidebar-foreground z-40 w-[--sidebar-width] p-0 [&>button]:hidden"
+      class="bg-sidebar text-sidebar-foreground z-40 h-dvh max-h-dvh w-[min(var(--sidebar-width),calc(100vw-1rem))] max-w-[calc(100vw-1rem)] p-0 [&>button]:hidden"
       :style="{
         '--sidebar-width': SIDEBAR_WIDTH_MOBILE,
       }"
     >
-      <div class="flex size-full flex-col">
+      <div class="flex size-full min-h-0 flex-col">
         <slot />
       </div>
     </SheetContent>

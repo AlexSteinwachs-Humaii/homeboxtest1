@@ -1,16 +1,30 @@
 <template>
-  <Card class="overflow-hidden shadow-xl">
+  <Card
+    class="overflow-hidden"
+    :class="variant === 'readable' ? 'readable-panel border border-border bg-card shadow-sm' : 'shadow-xl'"
+  >
     <CardHeader v-if="$slots.title" class="px-4 py-5 sm:px-6">
-      <component :is="collapsable ? 'button' : 'div'" v-on="collapsable ? { click: toggle } : {}">
-        <h3 class="flex items-center text-lg font-medium leading-6">
+      <button
+        v-if="collapsable"
+        :id="toggleId"
+        type="button"
+        class="glass-focus flex min-h-touch w-full items-center justify-between gap-3 rounded-md text-left"
+        :aria-expanded="expanded"
+        :aria-controls="panelId"
+        @click="toggle"
+      >
+        <h3 class="min-w-0 text-lg font-semibold leading-6">
           <slot name="title" />
-          <template v-if="collapsable">
-            <span class="ml-2 transition-transform" :class="{ 'rotate-180': collapsed }">
-              <MdiChevronDown class="size-6" />
-            </span>
-          </template>
         </h3>
-      </component>
+        <MdiChevronDown
+          class="size-6 shrink-0 transition-transform"
+          :class="{ 'rotate-180': expanded }"
+          aria-hidden="true"
+        />
+      </button>
+      <h3 v-else class="flex items-center text-lg font-medium leading-6">
+        <slot name="title" />
+      </h3>
       <div>
         <p v-if="$slots.subtitle" class="mt-1 max-w-2xl text-sm text-foreground/70">
           <slot name="subtitle" />
@@ -21,11 +35,11 @@
       </div>
     </CardHeader>
     <CardContent
-      :class="{
-        'max-h-[9000px]': collapsable && !collapsed,
-        'max-h-0 overflow-hidden': collapsed,
-      }"
-      class="p-0 transition-[max-height] duration-200"
+      :id="panelId"
+      :hidden="collapsable && !expanded ? true : undefined"
+      :inert="collapsable && !expanded ? true : undefined"
+      :aria-labelledby="collapsable ? toggleId : undefined"
+      class="p-0"
     >
       <slot />
     </CardContent>
@@ -36,13 +50,35 @@
   import MdiChevronDown from "~icons/mdi/chevron-down";
   import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
-  defineProps<{
-    collapsable?: boolean;
-  }>();
+  withDefaults(
+    defineProps<{
+      collapsable?: boolean;
+      /** Opaque readable surface. Default callers keep the existing card treatment. */
+      variant?: "default" | "readable";
+    }>(),
+    {
+      variant: "default",
+    }
+  );
+
+  const panelId = useId();
+  const toggleId = `${panelId}-toggle`;
+  const expanded = ref(true);
 
   function toggle() {
-    collapsed.value = !collapsed.value;
+    expanded.value = !expanded.value;
   }
-
-  const collapsed = ref(false);
 </script>
+
+<style scoped>
+  /*
+   * Data panels stay opaque even if a shell material later adds blur.
+   * The class is on the child Card root, so :deep is required.
+   */
+  :deep(.readable-panel) {
+    background-color: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+</style>

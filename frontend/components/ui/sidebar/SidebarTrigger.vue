@@ -14,8 +14,14 @@
 </script>
 
 <template>
-  <Button data-sidebar="trigger" :variant="props.variant ?? 'ghost'" size="icon" :class="cn('size-9 [&_svg]:size-6', props.class)" @click="toggleSidebar">
-    <MdiMenu class="text-primary-foreground" />
+  <Button
+    data-sidebar="trigger"
+    :variant="props.variant ?? 'ghost'"
+    size="touch-icon"
+    :class="cn('glass-focus [&_svg]:size-6', props.class)"
+    @click="toggleSidebar"
+  >
+    <MdiMenu class="text-current" />
     <span class="sr-only">Toggle Sidebar</span>
   </Button>
 </template>

@@ -11,6 +11,7 @@
   const props = defineProps<{
     table: TableType<EntitySummary>;
     locationFlatTree?: FlatTreeItem[];
+    presentation?: "default" | "search";
   }>();
 
   defineEmits<{
@@ -50,14 +51,25 @@
       </span>
     </div>
   </Teleport>
-  <div v-if="table.getRowModel().rows?.length === 0" class="flex flex-col items-center gap-2">
+  <div
+    v-if="presentation !== 'search' && table.getRowModel().rows?.length === 0"
+    class="flex flex-col items-center gap-2"
+  >
     <MdiSelectSearch class="size-10" />
     <p>{{ $t("items.no_results") }}</p>
   </div>
-  <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+  <div
+    v-else
+    class="grid grid-cols-1 gap-4"
+    :class="
+      presentation === 'search' ? 'sm:grid-cols-2 xl:grid-cols-3' : 'sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+    "
+    :data-testid="presentation === 'search' ? 'search-card-grid' : undefined"
+  >
     <ItemCard
       v-for="item in table.getRowModel().rows"
       :key="item.original.id"
+      :variant="presentation === 'search' ? 'search' : 'default'"
       :item="item.original"
       :table-row="preferences.quickActions.enabled ? item : undefined"
       :location-flat-tree="locationFlatTree"
