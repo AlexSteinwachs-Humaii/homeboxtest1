@@ -19,7 +19,7 @@ test.beforeEach(async ({ context }) => {
     {
       name: "hb.auth.session",
       value: "true",
-      url: process.env.E2E_BASE_URL || "http://127.0.0.1:3000",
+      url: process.env.E2E_BASE_URL || "http://localhost:3000",
     },
   ]);
 });
