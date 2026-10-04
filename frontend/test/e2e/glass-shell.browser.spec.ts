@@ -415,6 +415,10 @@ test.describe("Glass v5 shell", () => {
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/home");
+    await expectMinTarget(page.locator('.glass-header a[href="/home"]'), "mobile Home link");
+    await shellTrigger(page).focus();
+    await page.keyboard.press("Tab");
+    await expect(page.locator('.glass-header a[href="/home"]')).toBeFocused();
     await shellTrigger(page).click();
     const drawer = page.locator("[data-mobile='true'][data-sidebar='sidebar']");
     await expect(drawer).toBeVisible();
@@ -428,5 +432,22 @@ test.describe("Glass v5 shell", () => {
     await expect(page.getByRole("menuitem", { name: "Item / Asset" })).toBeHidden();
     await page.keyboard.press("Escape");
     await expect(drawer).toBeHidden();
+
+    // A short desktop window must not clip links when the sidebar is collapsed.
+    await page.setViewportSize({ width: 834, height: 480 });
+    await page.goto("/home");
+    const sidebar = page.locator('[data-variant="floating"] [data-sidebar="sidebar"]');
+    await expect(sidebar).toBeVisible();
+    if (await page.locator('[data-variant="floating"][data-state="expanded"]').count()) {
+      await shellTrigger(page).click();
+    }
+    await expect(page.locator('[data-variant="floating"][data-state="collapsed"]')).toBeVisible();
+    const content = sidebar.locator('[data-sidebar="content"]');
+    await expect.poll(() => content.evaluate(el => getComputedStyle(el).overflowY)).toBe("auto");
+    const collection = sidebar.getByRole("link", { name: "Collection", exact: true });
+    await collection.scrollIntoViewIfNeeded();
+    await expectInViewport(collection, { width: 834, height: 480 }, "collapsed Collection");
+    await collection.click();
+    await expect(page).toHaveURL(/\/collection\/settings/);
   });
 });

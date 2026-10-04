@@ -33,6 +33,16 @@ Costly effects are limited to navigation: `blur(16px) saturate(1.15)` on the sid
 
 No frame-time or thermal reading was taken. A desktop browser scrolling an emulated viewport does not measure iPad compositor cost.
 
+## Review follow-up
+
+The review enlarged the mobile Home mark link to 44×44 with explicit keyboard focus, and kept the sidebar content scrollable when collapsed. Regression coverage checks the mobile link's target and focus, plus reaching Collection in a collapsed sidebar at 834×480.
+
+Review rerun: the viewport and solid-fallback cases passed in Chromium and WebKit (four cases). The extended keyboard/overlay case then passed in both projects (two cases) after waiting for the desktop sidebar before toggling its collapsed state. Command: `E2E_BASE_URL=http://127.0.0.1:3000 pnpm exec playwright test --config test/playwright.config.ts test/e2e/glass-shell.browser.spec.ts --project chromium --project webkit --workers 1 --reporter line`. The server must be started separately (`pnpm dev --no-fork --host 127.0.0.1 --port 3000`). Earlier review attempts failed with connection-refused errors; these were not UI assertion failures.
+
+The two foundation Vitest files passed (nine tests). Targeted ESLint completed; full `lint:ci` and `typecheck` each exceeded the review's 600-second limit without a completed result. `pnpm build` also exceeded 600 seconds: client and server compilation completed, but static generation did not return a result. These are not recorded as passing checks.
+
+Coverage limits: token contrast calculations are not a rendered-state audit of every theme, hover state, or composited pixel. The redundant sidebar rail still has `tabindex=-1`; keyboard collapse/expand uses the labelled 44px header trigger. The suite does not verify real collection create/join/switch persistence, scanner permission denial, or real sign-out against the backend.
+
 ## Still needs a person
 
 - Real iPad (or other touch tablet) touch targets, scroll, and sticky header with a finger, including the floating sidebar rail

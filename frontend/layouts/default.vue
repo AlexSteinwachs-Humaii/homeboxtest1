@@ -160,7 +160,7 @@
             <SidebarTrigger class="shrink-0" variant="default" />
             <NuxtLink
               to="/home"
-              class="glass-brand hidden shrink-0 min-[360px]:flex md:hidden"
+              class="glass-brand glass-focus hidden size-11 shrink-0 items-center justify-center rounded-md min-[360px]:flex md:hidden"
               :aria-label="$t('menu.home')"
             >
               <AppLogo class="size-8" />
