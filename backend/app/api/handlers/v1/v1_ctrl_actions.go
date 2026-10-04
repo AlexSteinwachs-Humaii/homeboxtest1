@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/sysadminsmedia/homebox/backend/internal/core/services"
 	"github.com/sysadminsmedia/homebox/backend/internal/core/services/reporting/eventbus"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/repo"
 	"github.com/sysadminsmedia/homebox/backend/internal/sys/validate"
 )
 
@@ -144,6 +145,9 @@ func (ctrl *V1Controller) HandleWipeInventory() errchain.HandlerFunc {
 		totalCompleted, err := ctrl.repo.Entities.WipeInventory(ctx, ctx.GID, options.WipeTags, options.WipeLocations, options.WipeMaintenance)
 		if err != nil {
 			log.Err(err).Str("action_ref", "wipe inventory").Msg("failed to run action")
+			if errors.Is(err, repo.ErrRetainedDisposal) {
+				return validate.NewRequestError(err, http.StatusConflict)
+			}
 			return validate.NewRequestError(err, http.StatusInternalServerError)
 		}
 

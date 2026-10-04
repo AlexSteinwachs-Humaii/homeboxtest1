@@ -285,6 +285,9 @@ func (ctrl *V1Controller) HandleEntityDelete() errchain.HandlerFunc {
 		auth := services.NewContext(spanCtx)
 		span.SetAttributes(attribute.String("group.id", auth.GID.String()))
 		err := ctrl.repo.Entities.DeleteByGroup(auth, auth.GID, ID)
+		if errors.Is(err, repo.ErrRetainedDisposal) {
+			return nil, validate.NewRequestError(err, http.StatusConflict)
+		}
 		if err != nil {
 			recordCtrlSpanError(span, err)
 		}

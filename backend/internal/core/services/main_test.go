@@ -2,6 +2,10 @@ package services
 
 import (
 	"context"
+	"database/sql"
+	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"log"
 	"os"
 	"testing"
@@ -58,7 +62,18 @@ func MainNoExit(m *testing.M) int {
 	// (see hasher.HashAPIKey); the app sets it at startup, so tests must too.
 	hasher.SetAPIKeyPepper([]byte("test-api-key-pepper"))
 
-	client, err := ent.Open("sqlite3", "file:ent?mode=memory&cache=shared&_fk=1&_time_format=sqlite")
+	// TEST_POSTGRES_DSN must target an isolated test database/schema.
+	var client *ent.Client
+	var err error
+	if dsn := os.Getenv("TEST_POSTGRES_DSN"); dsn != "" {
+		var db *sql.DB
+		db, err = sql.Open("pgx", dsn)
+		if err == nil {
+			client = ent.NewClient(ent.Driver(entsql.OpenDB(dialect.Postgres, db)))
+		}
+	} else {
+		client, err = ent.Open("sqlite3", "file:ent?mode=memory&cache=shared&_fk=1&_time_format=sqlite")
+	}
 	if err != nil {
 		log.Fatalf("failed opening connection to sqlite: %v", err)
 	}
@@ -91,12 +106,16 @@ func MainNoExit(m *testing.M) int {
 		currencies.CollectDefaults(),
 	)
 
+	exportDialect := "sqlite3"
+	if os.Getenv("TEST_POSTGRES_DSN") != "" {
+		exportDialect = "postgres"
+	}
 	tSvc = New(tRepos,
 		WithCurrencies(defaults),
 		WithExportPlumbing(tbus, tClient, config.Storage{
 			PrefixPath: "/",
 			ConnString: "file://" + os.TempDir(),
-		}, "mem://{{ .Topic }}", "sqlite3"),
+		}, "mem://{{ .Topic }}", exportDialect),
 	)
 	defer func() { _ = client.Close() }()
 

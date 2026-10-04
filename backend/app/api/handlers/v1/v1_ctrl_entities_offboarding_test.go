@@ -92,6 +92,34 @@ func TestEntityOffboardingHandler(t *testing.T) {
 		stored, err := repos.Entities.GetOneByGroup(ctx, grp.ID, asset.ID)
 		require.NoError(t, err)
 		require.Equal(t, []types.Disposal{record}, stored.DisposalHistory)
+		// Direct attachment identifiers must not bypass the selected collection.
+		for _, check := range []struct {
+			method, body string
+			tenant       uuid.UUID
+			status       int
+		}{
+			{http.MethodGet, "", uuid.New(), http.StatusNotFound},
+			{http.MethodDelete, "", uuid.New(), http.StatusNotFound},
+			{http.MethodPut, `{"type":"manual","title":"changed"}`, uuid.New(), http.StatusNotFound},
+			{http.MethodDelete, "", grp.ID, http.StatusConflict},
+			{http.MethodPut, `{"type":"manual","title":"changed"}`, grp.ID, http.StatusConflict},
+		} {
+			req := httptest.NewRequest(check.method, "/entities/"+asset.ID.String()+"/attachments/"+certificate.ID.String(), strings.NewReader(check.body))
+			req.Header.Set("Content-Type", "application/json")
+			route := chi.NewRouteContext()
+			route.URLParams.Add("id", asset.ID.String())
+			route.URLParams.Add("attachment_id", certificate.ID.String())
+			req = req.WithContext(context.WithValue(services.SetTenantCtx(auth, check.tenant), chi.RouteCtxKey, route))
+			err := ctrl.handleEntityAttachmentsHandler(httptest.NewRecorder(), req)
+			var requestErr *validate.RequestError
+			require.ErrorAs(t, err, &requestErr)
+			require.Equal(t, check.status, requestErr.Status)
+		}
+		after, err := repos.Entities.GetOneByGroup(ctx, grp.ID, asset.ID)
+		require.NoError(t, err)
+		require.Equal(t, stored.DisposalHistory, after.DisposalHistory)
+		require.Len(t, after.Attachments, 1)
+
 	})
 
 	for _, disposalRoute := range []string{"sale", "donation", "recycling"} {

@@ -52,10 +52,11 @@ import (
 // AttachmentRepo is a repository for Attachments table that links Items to their
 // associated files while also specifying the type of the attachment.
 type AttachmentRepo struct {
-	db         *ent.Client
-	storage    config.Storage
-	pubSubConn string
-	thumbnail  config.Thumbnail
+	db          *ent.Client
+	retentionTx bool
+	storage     config.Storage
+	pubSubConn  string
+	thumbnail   config.Thumbnail
 }
 
 type (
@@ -483,6 +484,19 @@ func (r *AttachmentRepo) Get(ctx context.Context, gid uuid.UUID, id uuid.UUID) (
 }
 
 func (r *AttachmentRepo) Update(ctx context.Context, gid uuid.UUID, id uuid.UUID, data *ItemAttachmentUpdate) (*ent.Attachment, error) {
+	var out *ent.Attachment
+	err := r.withRetentionLock(ctx, gid, id, func(txRepo *AttachmentRepo) error {
+		var err error
+		out, err = txRepo.update(ctx, gid, id, data)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return r.Get(ctx, gid, out.ID)
+}
+
+func (r *AttachmentRepo) update(ctx context.Context, gid uuid.UUID, id uuid.UUID, data *ItemAttachmentUpdate) (*ent.Attachment, error) {
 	// Validate that the attachment belongs to the specified group
 	_, err := r.db.Attachment.Query().
 		Where(
@@ -494,7 +508,17 @@ func (r *AttachmentRepo) Update(ctx context.Context, gid uuid.UUID, id uuid.UUID
 		return nil, err
 	}
 
-	// TODO: execute within Tx
+	retained, err := r.retainedEvidence(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	current, err := r.db.Attachment.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if retained && current.Type != attachment.Type(data.Type) {
+		return nil, ErrRetainedDisposal
+	}
 	typ := attachment.Type(data.Type)
 
 	bldr := r.db.Attachment.UpdateOneID(id).
@@ -536,6 +560,10 @@ func (r *AttachmentRepo) Update(ctx context.Context, gid uuid.UUID, id uuid.UUID
 }
 
 func (r *AttachmentRepo) Delete(ctx context.Context, gid uuid.UUID, id uuid.UUID) error {
+	return r.withRetentionLock(ctx, gid, id, func(txRepo *AttachmentRepo) error { return txRepo.delete(ctx, gid, id) })
+}
+
+func (r *AttachmentRepo) delete(ctx context.Context, gid uuid.UUID, id uuid.UUID) error {
 	ctx, span := otel.Tracer("data").Start(ctx, "repo.AttachmentRepo.Delete")
 	defer span.End()
 
@@ -550,6 +578,13 @@ func (r *AttachmentRepo) Delete(ctx context.Context, gid uuid.UUID, id uuid.UUID
 		return err
 	}
 
+	retained, err := r.retainedEvidence(ctx, id)
+	if err != nil {
+		return err
+	}
+	if retained {
+		return ErrRetainedDisposal
+	}
 	if isExternalLink(doc.MimeType) {
 		return r.db.Attachment.DeleteOneID(id).Exec(ctx)
 	}

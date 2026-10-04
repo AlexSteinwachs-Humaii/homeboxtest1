@@ -73,7 +73,7 @@ func TestEntityOffboardingWriteFailureIsAtomic(t *testing.T) {
 	asset := useEntities(t, 1)[0]
 	failure := errors.New("injected write failure")
 	// A per-client hook avoids altering the shared fixture's other writes.
-	client, err := ent.Open("sqlite3", "file:ent?mode=memory&cache=shared&_fk=1&_time_format=sqlite")
+	client, err := openTestClient()
 	require.NoError(t, err)
 	defer func() { _ = client.Close() }()
 	client.Entity.Use(func(next ent.Mutator) ent.Mutator {

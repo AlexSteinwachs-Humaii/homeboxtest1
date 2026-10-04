@@ -2,6 +2,10 @@ package repo
 
 import (
 	"context"
+	"database/sql"
+	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"log"
 	"os"
 	"testing"
@@ -42,7 +46,7 @@ func bootstrap() {
 }
 
 func MainNoExit(m *testing.M) int {
-	client, err := ent.Open("sqlite3", "file:ent?mode=memory&cache=shared&_fk=1&_time_format=sqlite")
+	client, err := openTestClient()
 	if err != nil {
 		log.Fatalf("failed opening connection to sqlite: %v", err)
 	}
@@ -78,4 +82,20 @@ func MainNoExit(m *testing.M) int {
 
 func TestMain(m *testing.M) {
 	os.Exit(MainNoExit(m))
+}
+
+func openTestClient() (*ent.Client, error) {
+	// TEST_POSTGRES_DSN must target an isolated test database/schema.
+	var client *ent.Client
+	var err error
+	if dsn := os.Getenv("TEST_POSTGRES_DSN"); dsn != "" {
+		var db *sql.DB
+		db, err = sql.Open("pgx", dsn)
+		if err == nil {
+			client = ent.NewClient(ent.Driver(entsql.OpenDB(dialect.Postgres, db)))
+		}
+	} else {
+		client, err = ent.Open("sqlite3", "file:ent?mode=memory&cache=shared&_fk=1&_time_format=sqlite")
+	}
+	return client, err
 }

@@ -69,6 +69,9 @@ func useEntities(t *testing.T, count int) []EntityOut {
 
 	t.Cleanup(func() {
 		for _, e := range entities {
+			// Fixture teardown explicitly clears retained data; production deletion
+			// must never be used to bypass the disposal retention guard.
+			_, _ = tClient.Entity.UpdateOneID(e.ID).SetDisposed(false).ClearDisposalHistory().Save(context.Background())
 			_ = tRepos.Entities.Delete(context.Background(), e.ID)
 		}
 		_ = tRepos.Entities.Delete(context.Background(), container.ID)

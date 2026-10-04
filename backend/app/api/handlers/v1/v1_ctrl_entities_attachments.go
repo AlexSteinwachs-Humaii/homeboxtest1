@@ -12,6 +12,7 @@ import (
 	"github.com/hay-kot/httpkit/server"
 	"github.com/rs/zerolog/log"
 	"github.com/sysadminsmedia/homebox/backend/internal/core/services"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/ent"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/attachment"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/repo"
 	"github.com/sysadminsmedia/homebox/backend/internal/sys/validate"
@@ -76,7 +77,7 @@ func (ctrl *V1Controller) HandleEntityAttachmentCreate() errchain.HandlerFunc {
 				parseSpan.End()
 				recordCtrlSpanError(span, err)
 				log.Err(err).Msg("failed to get file from form")
-				return validate.NewRequestError(err, http.StatusInternalServerError)
+				return attachmentRequestError(err)
 			}
 		}
 
@@ -139,7 +140,7 @@ func (ctrl *V1Controller) HandleEntityAttachmentCreate() errchain.HandlerFunc {
 		if err != nil {
 			recordCtrlSpanError(span, err)
 			log.Err(err).Msg("failed to add attachment")
-			return validate.NewRequestError(err, http.StatusInternalServerError)
+			return attachmentRequestError(err)
 		}
 
 		return server.JSON(w, http.StatusCreated, item)
@@ -222,7 +223,7 @@ func (ctrl *V1Controller) handleEntityAttachmentsHandler(w http.ResponseWriter, 
 			recordCtrlSpanError(getSpan, err)
 			recordCtrlSpanError(span, err)
 			log.Err(err).Msg("failed to get attachment path")
-			return validate.NewRequestError(err, http.StatusInternalServerError)
+			return attachmentRequestError(err)
 		}
 		getSpan.SetAttributes(
 			attribute.String("attachment.path", doc.Path),
@@ -251,7 +252,7 @@ func (ctrl *V1Controller) handleEntityAttachmentsHandler(w http.ResponseWriter, 
 			recordCtrlSpanError(getSpan, err)
 			recordCtrlSpanError(span, err)
 			log.Err(err).Msg("failed to open bucket")
-			return validate.NewRequestError(err, http.StatusInternalServerError)
+			return attachmentRequestError(err)
 		}
 		bucketSpan.End()
 
@@ -263,7 +264,7 @@ func (ctrl *V1Controller) handleEntityAttachmentsHandler(w http.ResponseWriter, 
 			recordCtrlSpanError(getSpan, err)
 			recordCtrlSpanError(span, err)
 			log.Err(err).Msg("failed to open file")
-			return validate.NewRequestError(err, http.StatusInternalServerError)
+			return attachmentRequestError(err)
 		}
 		readerSpan.End()
 
@@ -307,7 +308,7 @@ func (ctrl *V1Controller) handleEntityAttachmentsHandler(w http.ResponseWriter, 
 		if err != nil {
 			recordCtrlSpanError(span, err)
 			log.Err(err).Msg("failed to delete attachment")
-			return validate.NewRequestError(err, http.StatusInternalServerError)
+			return attachmentRequestError(err)
 		}
 
 		return server.JSON(w, http.StatusNoContent, nil)
@@ -332,7 +333,7 @@ func (ctrl *V1Controller) handleEntityAttachmentsHandler(w http.ResponseWriter, 
 		if err != nil {
 			recordCtrlSpanError(span, err)
 			log.Err(err).Msg("failed to update attachment")
-			return validate.NewRequestError(err, http.StatusInternalServerError)
+			return attachmentRequestError(err)
 		}
 
 		return server.JSON(w, http.StatusOK, val)
@@ -382,4 +383,17 @@ func isSafeInlineType(mimeType string) bool {
 	}
 
 	return false
+}
+
+// Retention is a conflict, not an internal failure; foreign identifiers remain
+// indistinguishable from missing attachments.
+func attachmentRequestError(err error) error {
+	status := http.StatusInternalServerError
+	if ent.IsNotFound(err) {
+		status = http.StatusNotFound
+	}
+	if errors.Is(err, repo.ErrRetainedDisposal) {
+		status = http.StatusConflict
+	}
+	return validate.NewRequestError(err, status)
 }

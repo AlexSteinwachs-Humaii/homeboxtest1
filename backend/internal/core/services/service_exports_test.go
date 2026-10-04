@@ -1,9 +1,11 @@
 package services
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"encoding/csv"
+	"encoding/json"
 	"io"
 	"strings"
 	"testing"
@@ -19,6 +21,7 @@ import (
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/predicate"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/tag"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/repo"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/types"
 )
 
 func tagInGroup(gid uuid.UUID) predicate.Tag {
@@ -77,9 +80,9 @@ func TestExportRoundTrip(t *testing.T) {
 	parentAtt, err := tRepos.Attachments.Create(ctx, item.ID,
 		repo.ItemCreateAttachment{
 			Title:   "manual.pdf",
-			Content: bytes.NewReader([]byte("dummy pdf body")),
+			Content: bytes.NewReader([]byte("%PDF-1.7\nretained destruction certificate")),
 		},
-		attachment.TypeManual, false)
+		attachment.TypeAttachment, false)
 	require.NoError(t, err)
 
 	srcGroup, err := tClient.Group.Get(ctx, src.ID)
@@ -98,6 +101,15 @@ func TestExportRoundTrip(t *testing.T) {
 		Save(ctx)
 	require.NoError(t, err)
 	_, err = tClient.Attachment.UpdateOneID(parentAtt.ID).SetThumbnailID(thumbAtt.ID).Save(ctx)
+	require.NoError(t, err)
+
+	// Retained JSON references forward to attachments and has user attribution
+	// unlike ordinary scalar entity FKs. Import must rewrite both, not merely
+	// copy the source UUIDs into the destination collection.
+	sourceUser := uuid.New()
+	disposal, err := tRepos.Entities.OffboardByGroup(ctx, src.ID, item.ID, sourceUser, repo.EntityOffboarding{
+		Route: "destruction", Destruction: &repo.DestructionInput{Declared: true, Date: types.DateFromString("2026-10-01"), Method: "Shredded", Evidence: []types.DestructionEvidence{{AttachmentID: parentAtt.ID, Kind: "certificate"}}},
+	})
 	require.NoError(t, err)
 
 	// --- Export --------------------------------------------------------
@@ -185,6 +197,22 @@ func TestExportRoundTrip(t *testing.T) {
 	gotAtts, err := gotItem.QueryAttachments().All(ctx)
 	require.NoError(t, err)
 	require.Len(t, gotAtts, 1, "parent attachment row must round-trip")
+	require.True(t, gotItem.Disposed)
+	require.Len(t, gotItem.DisposalHistory, 1)
+	gotDisposal := gotItem.DisposalHistory[0]
+	require.Equal(t, tUser.ID, gotDisposal.SubmittedBy, "import uses the importing user, like scalar userCols")
+	require.NotEqual(t, sourceUser, gotDisposal.SubmittedBy)
+	require.True(t, disposal.SubmittedAt.Equal(gotDisposal.SubmittedAt))
+	require.Equal(t, disposal.Route, gotDisposal.Route)
+	require.Equal(t, disposal.Destruction.Declaration, gotDisposal.Destruction.Declaration)
+	require.Equal(t, disposal.Destruction.Date, gotDisposal.Destruction.Date)
+	require.Equal(t, disposal.Destruction.Method, gotDisposal.Destruction.Method)
+	require.Equal(t, gotAtts[0].ID, gotDisposal.Destruction.Evidence[0].AttachmentID)
+	require.NotEqual(t, parentAtt.ID, gotDisposal.Destruction.Evidence[0].AttachmentID)
+	require.Equal(t, "certificate", gotDisposal.Destruction.Evidence[0].Kind)
+	_, err = tRepos.Attachments.Get(ctx, src.ID, gotAtts[0].ID)
+	require.Error(t, err, "source collection must not read imported evidence")
+	require.ErrorIs(t, tRepos.Attachments.Delete(ctx, dst.ID, gotAtts[0].ID), repo.ErrRetainedDisposal)
 
 	gotThumb, err := gotAtts[0].QueryThumbnail().Only(ctx)
 	require.NoError(t, err, "parent attachment must have its thumbnail edge restored")
@@ -207,11 +235,85 @@ func TestExportRoundTrip(t *testing.T) {
 
 	parentBlob, err := bk.ReadAll(ctx, tRepos.Attachments.GetFullPath(gotAtts[0].Path))
 	require.NoError(t, err, "parent attachment blob must be present at the rewritten path")
-	assert.Equal(t, "dummy pdf body", string(parentBlob))
+	assert.Equal(t, "%PDF-1.7\nretained destruction certificate", string(parentBlob))
 
 	thumbBlob, err := bk.ReadAll(ctx, tRepos.Attachments.GetFullPath(gotThumb.Path))
 	require.NoError(t, err, "thumbnail blob must be present at the rewritten path")
 	assert.Equal(t, "dummy thumbnail body", string(thumbBlob))
+	// A corrupt archive must fail inside the import transaction rather than
+	// committing a destruction history with missing or foreign evidence.
+	archiveBytes, err := bk.ReadAll(ctx, tRepos.Attachments.GetFullPath(artifactPath))
+	require.NoError(t, err)
+	original, err := zip.NewReader(bytes.NewReader(archiveBytes), int64(len(archiveBytes)))
+	require.NoError(t, err)
+	for _, mode := range []string{"missing blob", "foreign asset", "missing reference"} {
+		t.Run(mode, func(t *testing.T) {
+			var buf bytes.Buffer
+			zw := zip.NewWriter(&buf)
+			for _, f := range original.File {
+				if mode == "missing blob" && f.Name == attachmentsDir+parentAtt.ID.String() {
+					continue
+				}
+				reader, err := f.Open()
+				require.NoError(t, err)
+				data, err := io.ReadAll(reader)
+				require.NoError(t, err)
+				require.NoError(t, reader.Close())
+				if mode == "foreign asset" && f.Name == "attachments.json" {
+					rows, err := readTableJSON(original, f.Name)
+					require.NoError(t, err)
+					for _, row := range rows {
+						if row["id"] == parentAtt.ID.String() {
+							row["entity_attachments"] = loc.ID.String()
+						}
+					}
+					data, err = json.Marshal(rows)
+					require.NoError(t, err)
+				}
+				if mode == "missing reference" && f.Name == "entities.json" {
+					rows, err := readTableJSON(original, f.Name)
+					require.NoError(t, err)
+					broken := disposal
+					attestation := *disposal.Destruction
+					attestation.Evidence = []types.DestructionEvidence{{AttachmentID: uuid.New(), Kind: "certificate"}}
+					broken.Destruction = &attestation
+					history, err := json.Marshal([]types.Disposal{broken})
+					require.NoError(t, err)
+					for _, row := range rows {
+						if row["id"] == item.ID.String() {
+							row["disposal_history"] = string(history)
+						}
+					}
+					data, err = json.Marshal(rows)
+					require.NoError(t, err)
+				}
+				writer, err := zw.Create(f.Name)
+				require.NoError(t, err)
+				_, err = writer.Write(data)
+				require.NoError(t, err)
+			}
+			require.NoError(t, zw.Close())
+			corrupted, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+			require.NoError(t, err)
+			destination, err := tRepos.Groups.GroupCreate(ctx, "rejected import", uuid.Nil)
+			require.NoError(t, err)
+			tx, err := tSvc.Exports.db.Sql().BeginTx(ctx, nil)
+			require.NoError(t, err)
+			_, err = tSvc.Exports.replayImportRows(ctx, tx, corrupted, destination.ID, tUser.ID, src.ID)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "disposal evidence")
+			require.NoError(t, tx.Rollback())
+			count, err := tClient.Entity.Query().Where(entity.HasGroupWith(group.ID(destination.ID))).Count(ctx)
+			require.NoError(t, err)
+			require.Zero(t, count)
+		})
+	}
+	// Missing unrelated thumbnails may be tolerated by existing export rules;
+	// missing retained attestation evidence must never be silently skipped.
+	require.NoError(t, bk.Delete(ctx, tRepos.Attachments.GetFullPath(parentAtt.Path)))
+	_, _, err = tSvc.Exports.buildArtifact(ctx, expRow.ID, src.ID)
+	require.ErrorContains(t, err, "retained disposal evidence")
+
 }
 
 func TestCSVExportImportPreservesItemParent(t *testing.T) {

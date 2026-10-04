@@ -63,6 +63,9 @@ func (r *EntityRepository) OffboardByGroup(ctx context.Context, gid, id, uid uui
 		return types.Disposal{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if _, err := lockDisposalEntity(ctx, tx.Client(), gid, id); err != nil {
+		return types.Disposal{}, err
+	}
 	record := types.Disposal{Route: input.Route, SubmittedBy: uid, SubmittedAt: time.Now().UTC()}
 	if input.Route == "destruction" {
 		d := input.Destruction

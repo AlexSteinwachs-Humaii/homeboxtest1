@@ -30,6 +30,7 @@ import (
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/notifier"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/tag"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/repo"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/types"
 	"github.com/sysadminsmedia/homebox/backend/internal/sys/config"
 	"github.com/sysadminsmedia/homebox/backend/pkgs/utils"
 )
@@ -485,6 +486,21 @@ func (s *ExportService) buildArtifact(ctx context.Context, exportID, gid uuid.UU
 // Reuses the attachments tableSpec scope so the row dump and the blob copy
 // can never disagree about which attachments belong to the group.
 func (s *ExportService) copyAttachmentBlobs(ctx context.Context, zw *zip.Writer, gid uuid.UUID) error {
+	required := make(map[string]bool)
+	entities, err := s.db.Entity.Query().Where(entity.HasGroupWith(group.ID(gid))).All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, e := range entities {
+		for _, d := range e.DisposalHistory {
+			if d.Destruction != nil {
+				for _, ref := range d.Destruction.Evidence {
+					required[ref.AttachmentID.String()] = true
+				}
+			}
+		}
+	}
+
 	var spec tableSpec
 	for _, t := range exportTables {
 		if t.name == "attachments" {
@@ -528,7 +544,10 @@ func (s *ExportService) copyAttachmentBlobs(ctx context.Context, zw *zip.Writer,
 	for _, ref := range refs {
 		r, err := bucket.NewReader(ctx, s.repos.Attachments.GetFullPath(ref.path), nil)
 		if err != nil {
-			// Don't fail the whole export for one missing blob; just skip it.
+			if required[ref.id] {
+				return fmt.Errorf("retained disposal evidence %s cannot be exported: %w", ref.id, err)
+			}
+			// Don't fail the whole export for one missing unrelated blob; just skip it.
 			// On import the attachment row will exist but the blob won't —
 			// same end state as a thumbnail-generation failure today.
 			log.Warn().Err(err).Str("path", ref.path).Msg("export: attachment blob missing, skipping")
@@ -544,6 +563,10 @@ func (s *ExportService) copyAttachmentBlobs(ctx context.Context, zw *zip.Writer,
 			return err
 		}
 		_ = r.Close()
+		delete(required, ref.id)
+	}
+	if len(required) > 0 {
+		return fmt.Errorf("retained disposal evidence missing attachment rows or paths")
 	}
 	return nil
 }
@@ -1295,6 +1318,13 @@ func (s *ExportService) replayImportRows(ctx context.Context, tx *sql.Tx, zr *zi
 		table, col, newID, oldFKValue, targetTable string
 	}
 	var deferred []deferredUpdate
+	// Disposal evidence points forward to attachments, which are inserted after
+	// entities. Rewrite nested references only after all attachment IDs exist.
+	type disposalUpdate struct {
+		id      string
+		history []types.Disposal
+	}
+	var disposals []disposalUpdate
 
 	for _, spec := range exportTables {
 		rows, err := readTableJSON(zr, spec.name+".json")
@@ -1317,6 +1347,28 @@ func (s *ExportService) replayImportRows(ctx context.Context, tx *sql.Tx, zr *zi
 			newID, err := remapImportRow(row, spec, gid, userID, srcGroupID, remapFK, rememberID)
 			if err != nil {
 				return nil, err
+			}
+			if spec.name == entitiesTable && row["disposal_history"] != nil {
+				raw := row["disposal_history"]
+				var data []byte
+				switch v := raw.(type) {
+				case string:
+					data = []byte(v)
+				case []byte:
+					data = v
+				default:
+					data, err = json.Marshal(v)
+				}
+				if err != nil {
+					return nil, err
+				}
+				var history []types.Disposal
+				if err := json.Unmarshal(data, &history); err != nil {
+					return nil, fmt.Errorf("invalid disposal history: %w", err)
+				}
+				if len(history) > 0 {
+					disposals = append(disposals, disposalUpdate{newID, history})
+				}
 			}
 			for col, target := range spec.deferCols {
 				if v, ok := row[col]; ok && v != nil && v != "" {
@@ -1348,6 +1400,51 @@ func (s *ExportService) replayImportRows(ctx context.Context, tx *sql.Tx, zr *zi
 		}
 	}
 
+	for _, d := range disposals {
+		for i := range d.history {
+			record := &d.history[i]
+			// As with scalar userCols, imported attribution uses the importing user.
+			// Declaration text and the original server timestamp remain unchanged.
+			record.SubmittedBy = userID
+			if record.Destruction == nil {
+				continue
+			}
+			for j := range record.Destruction.Evidence {
+				ref := &record.Destruction.Evidence[j]
+				mapped, ok := idMap["attachments"][ref.AttachmentID.String()]
+				if !ok {
+					return nil, fmt.Errorf("disposal evidence attachment %s missing from import", ref.AttachmentID)
+				}
+				evidenceFile, err := zr.Open(attachmentsDir + ref.AttachmentID.String())
+				if err != nil {
+					return nil, fmt.Errorf("retained disposal evidence blob missing: %w", err)
+				}
+				_ = evidenceFile.Close()
+				mappedID, err := uuid.Parse(mapped)
+				if err != nil {
+					return nil, err
+				}
+				ref.AttachmentID = mappedID
+				// Do not allow a crafted archive to associate evidence with another asset.
+				var owner string
+				q := "SELECT entity_attachments FROM attachments WHERE id = " + placeholder(s.dialect, 1)
+				if err := tx.QueryRowContext(ctx, q, mapped).Scan(&owner); err != nil {
+					return nil, err
+				}
+				if owner != d.id {
+					return nil, fmt.Errorf("disposal evidence belongs to another entity")
+				}
+			}
+		}
+		data, err := json.Marshal(d.history)
+		if err != nil {
+			return nil, err
+		}
+		q := "UPDATE entities SET disposal_history = " + placeholder(s.dialect, 1) + " WHERE id = " + placeholder(s.dialect, 2)
+		if _, err := tx.ExecContext(ctx, q, string(data), d.id); err != nil {
+			return nil, err
+		}
+	}
 	return idMap, nil
 }
 

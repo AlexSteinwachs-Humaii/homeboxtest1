@@ -3,10 +3,14 @@ package migrations
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/types"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/stretchr/testify/require"
@@ -59,6 +63,22 @@ func TestDisposalMigrationDefaults(t *testing.T) {
 			var disposed bool
 			require.NoError(t, tx.QueryRow("SELECT disposed FROM entities WHERE id = 3").Scan(&disposed))
 			require.False(t, disposed)
+
+			history := []types.Disposal{{Route: "destruction", SubmittedBy: uuid.New(), SubmittedAt: time.Now().UTC().Truncate(time.Second), Destruction: &types.DestructionAttestation{Declaration: types.DestructionDeclaration, Date: types.DateFromString("2026-10-01"), Method: "Shredded", Evidence: []types.DestructionEvidence{{AttachmentID: uuid.New(), Kind: "certificate"}}}}}
+			data, err = json.Marshal(history)
+			require.NoError(t, err)
+			placeholder := "?"
+			if driver == "postgres" {
+				placeholder = "$1"
+			}
+			_, err = tx.Exec("UPDATE entities SET disposed = true, disposal_history = "+placeholder+" WHERE id = 1", string(data))
+			require.NoError(t, err)
+			var stored string
+			require.NoError(t, tx.QueryRow("SELECT disposed, disposal_history FROM entities WHERE id = 1").Scan(&disposed, &stored))
+			require.True(t, disposed)
+			var got []types.Disposal
+			require.NoError(t, json.Unmarshal([]byte(stored), &got))
+			require.Equal(t, history, got)
 			for _, stmt := range strings.Split(parts[1], ";") {
 				if strings.TrimSpace(stmt) != "" {
 					_, err = tx.Exec(stmt)
