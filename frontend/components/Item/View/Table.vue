@@ -15,5 +15,11 @@
 </script>
 
 <template>
-  <DataTable view="table" :data="items" :columns="columns" disable-controls />
+  <DataTable
+    view="table"
+    :data="items"
+    :columns="columns"
+    :column-visibility-overrides="{ assetId: true }"
+    disable-controls
+  />
 </template>

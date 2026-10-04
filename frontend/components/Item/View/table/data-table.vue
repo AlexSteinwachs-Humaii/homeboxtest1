@@ -31,6 +31,7 @@
     columns: ColumnDef<EntitySummary, TValue>[];
     data: EntitySummary[];
     disableControls?: boolean;
+    columnVisibilityOverrides?: VisibilityState;
     view: "table" | "card";
     locationFlatTree?: FlatTreeItem[];
     externalPagination?: Pagination;
@@ -62,9 +63,10 @@
     ...(tableHeaders.value ? tableHeaders.value.map(h => h.value) : []),
     "actions",
   ]);
-  const columnVisibility = ref<VisibilityState>(
-    tableHeaders.value?.reduce((acc, h) => ({ ...acc, [h.value]: h.enabled }), {})
-  );
+  const columnVisibility = ref<VisibilityState>({
+    ...tableHeaders.value?.reduce((acc, h) => ({ ...acc, [h.value]: h.enabled }), {}),
+    ...props.columnVisibilityOverrides,
+  });
   const rowSelection = ref({});
   const expanded = ref<ExpandedState>({});
   const pagination = ref({
