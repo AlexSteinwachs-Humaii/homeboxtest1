@@ -5,16 +5,18 @@
   import type { EntitySummary, TagSummary } from "~~/lib/api/types/data-contracts";
   import { useTagStore } from "~/stores/tags";
   import { useLocationStore } from "~~/stores/locations";
-  import MdiLoading from "~icons/mdi/loading";
-  import MdiMagnify from "~icons/mdi/magnify";
+  import MdiPlus from "~icons/mdi/plus";
   import MdiDelete from "~icons/mdi/delete";
   import { Button } from "@/components/ui/button";
+  import { DialogID } from "~/components/ui/dialog-provider/utils";
+  import { useDialog } from "~/components/ui/dialog-provider";
+  import { registerInventorySearch } from "~/composables/use-inventory-search";
+  import type { ViewType } from "~~/composables/use-preferences";
   import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
   import { Label } from "@/components/ui/label";
   import { Switch } from "@/components/ui/switch";
   import { Separator } from "@/components/ui/separator";
   import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-  import BaseContainer from "@/components/Base/Container.vue";
   import SearchFilter from "~/components/Search/Filter.vue";
   import ItemViewSelectable from "~/components/Item/View/Selectable.vue";
   import type { LocationQueryRaw } from "vue-router";
@@ -26,7 +28,22 @@
   });
 
   useHead({
-    title: "HomeBox | " + t("global.items"),
+    title: "HomeBox | " + t("menu.search"),
+  });
+
+  const { openDialog } = useDialog();
+  const { selectedCollection, load: loadCollections } = useCollections();
+
+  function createItem() {
+    openDialog(DialogID.CreateEntity, { params: { baseType: "item" } });
+  }
+
+  const searchEyebrow = computed(() => {
+    const name = selectedCollection.value?.name?.trim();
+    if (!name) {
+      return t("items.search_eyebrow_fallback");
+    }
+    return t("items.search_eyebrow", { name });
   });
 
   const searchLocked = ref(false);
@@ -37,6 +54,7 @@
   const loading = useMinLoader(500);
   const items = ref<EntitySummary[]>([]);
   const total = ref(0);
+  const phase = ref<"loading" | "ready" | "empty" | "error">("loading");
 
   // Using useRouteQuery directly has two downsides
   // 1. It persists the default value in the query string
@@ -93,6 +111,11 @@
 
   const preferences = useViewPreferences();
   const pageSize = computed(() => preferences.value.itemsPerTablePage);
+  const itemView = computed(() => preferences.value.itemDisplayView);
+
+  function setItemView(view: ViewType) {
+    preferences.value.itemDisplayView = view;
+  }
 
   const route = useRoute();
   const router = useRouter();
@@ -100,6 +123,7 @@
   onMounted(async () => {
     loading.value = true;
     searchLocked.value = true;
+    void loadCollections();
     await Promise.all([locationsStore.ensureLocationsFetched(), tagStore.ensureAllTagsFetched()]);
     if (qLoc) {
       selectedLocations.value = locations.value.filter(l => qLoc.value.includes(l.id));
@@ -123,10 +147,7 @@
       }
     }
 
-    // trigger search if no changes
-    if (!qTag && !qLoc) {
-      search();
-    }
+    await search();
 
     loading.value = false;
     window.scroll({
@@ -261,6 +282,7 @@
       return;
     }
 
+    phase.value = "loading";
     loading.value = true;
 
     const fields = [];
@@ -330,21 +352,30 @@
 
     if (error) {
       resetItems();
+      phase.value = "error";
       toast.error(t("items.toast.failed_search_items"));
       return;
     }
 
     if (!data.items || data.items.length === 0) {
       resetItems();
+      phase.value = "empty";
       return;
     }
 
     total.value = data.total;
     items.value = data.items;
+    phase.value = "ready";
 
     loading.value = false;
     initialSearch.value = false;
   }
+
+  registerInventorySearch(next => {
+    query.value = next;
+    page.value = 1;
+    void search();
+  });
 
   watchDebounced([page, pageSize, query, selectedTags, selectedLocations], search, { debounce: 250, maxWait: 1000 });
 
@@ -387,30 +418,69 @@
 </script>
 
 <template>
-  <BaseContainer>
-    <div v-if="locations && tags">
-      <div class="flex flex-wrap items-end gap-4 md:flex-nowrap">
-        <div class="w-full">
-          <Input v-model:model-value="query" :placeholder="$t('global.search')" class="h-12" />
-          <div v-if="byAssetId" class="pl-2 pt-2 text-sm">
-            <p>{{ $t("items.query_id", { id: parsedAssetId }) }}</p>
-          </div>
+  <div class="glass-page mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-glass-section" data-testid="search-page">
+    <header class="min-w-0">
+      <div class="flex min-w-0 flex-wrap items-start justify-between gap-4">
+        <div class="min-w-0 flex-1">
+          <p class="glass-eyebrow">{{ searchEyebrow }}</p>
+          <h1 class="glass-title mt-1 break-words" data-testid="search-heading">{{ $t("menu.search") }}</h1>
+          <p class="glass-body mt-1 text-muted-foreground">{{ $t("items.search_subtitle") }}</p>
         </div>
-        <Button class="mb-auto h-12 w-full md:w-auto" @click.prevent="submit">
-          <MdiLoading v-if="loading" class="animate-spin" />
-          <MdiMagnify v-else />
-          {{ $t("global.search") }}
+        <Button
+          type="button"
+          variant="action"
+          size="touch"
+          class="shrink-0"
+          data-testid="search-create"
+          @click="createItem"
+        >
+          <MdiPlus />
+          {{ $t("global.create") }}
         </Button>
       </div>
 
-      <div class="flex w-full flex-wrap gap-2 py-2 md:flex-nowrap">
-        <SearchFilter v-model="selectedLocations" :label="$t('global.locations')" :options="locationFlatTree" />
-        <SearchFilter v-model="selectedTags" :label="$t('global.tags')" :options="tags" />
+      <form class="mt-4 min-w-0" @submit.prevent="submit">
+        <Label for="inventory-query" class="text-sm font-medium">{{ $t("items.search_query_label") }}</Label>
+        <Input
+          id="inventory-query"
+          v-model:model-value="query"
+          name="q"
+          type="search"
+          class="glass-field-touch mt-1 h-11 min-h-11 rounded-full"
+          :placeholder="$t('items.search_query_placeholder')"
+          :aria-describedby="byAssetId ? 'inventory-query-asset' : 'inventory-query-hint'"
+          data-testid="search-query"
+          @keydown.enter.prevent="submit"
+        />
+        <p id="inventory-query-hint" class="mt-1 max-w-prose text-sm text-muted-foreground">
+          {{ $t("items.search_query_hint") }}
+        </p>
+        <p v-if="byAssetId" id="inventory-query-asset" class="mt-1 text-sm" role="status">
+          {{ $t("items.query_id", { id: parsedAssetId }) }}
+        </p>
+      </form>
+
+      <div class="mt-4 flex min-w-0 flex-wrap items-center gap-2">
+        <SearchFilter
+          v-model="selectedLocations"
+          :label="$t('global.locations')"
+          :options="locationFlatTree"
+          test-id="search-locations"
+        />
+        <SearchFilter v-model="selectedTags" :label="$t('global.tags')" :options="tags" test-id="search-tags" />
         <Popover>
           <PopoverTrigger as-child>
-            <Button size="sm" variant="outline"> {{ $t("items.options") }}</Button>
+            <Button
+              type="button"
+              size="touch"
+              variant="glass"
+              class="h-auto max-w-full whitespace-normal rounded-full"
+              data-testid="search-options"
+            >
+              {{ $t("items.options") }}
+            </Button>
           </PopoverTrigger>
-          <PopoverContent class="z-40 flex flex-col gap-2">
+          <PopoverContent class="z-40 flex max-h-[min(70vh,32rem)] flex-col gap-2 overflow-y-auto">
             <Label class="flex cursor-pointer items-center">
               <Switch v-model="includeArchived" class="ml-auto" />
               <div class="grow" />
@@ -453,15 +523,23 @@
               </Select>
             </Label>
             <Separator />
-            <Button @click="reset"> {{ $t("items.reset_search") }} </Button>
+            <Button type="button" @click="reset"> {{ $t("items.reset_search") }} </Button>
           </PopoverContent>
         </Popover>
-        <div class="grow" />
+        <div class="min-w-2 flex-1" />
         <Popover>
           <PopoverTrigger as-child>
-            <Button size="sm" variant="outline"> {{ $t("items.tips") }}</Button>
+            <Button
+              type="button"
+              size="touch"
+              variant="glass"
+              class="h-auto max-w-full whitespace-normal rounded-full"
+              data-testid="search-tips"
+            >
+              {{ $t("items.tips") }}
+            </Button>
           </PopoverTrigger>
-          <PopoverContent class="z-40 w-[325px]" align="end">
+          <PopoverContent class="z-40 w-[min(325px,calc(100vw-2rem))] max-w-[calc(100vw-2rem)]" align="end">
             <p class="text-base">{{ $t("items.tips_sub") }}</p>
             <ul class="mt-1 list-disc pl-6 text-sm">
               <li>
@@ -477,7 +555,7 @@
           </PopoverContent>
         </Popover>
       </div>
-      <div v-if="fieldSelector" class="flex flex-col gap-2 pb-2">
+      <div v-if="fieldSelector" class="mt-4 flex min-w-0 flex-col gap-2">
         <p>{{ $t("items.custom_fields") }}</p>
         <div v-for="(f, idx) in fieldTuples" :key="idx" class="flex flex-wrap gap-2">
           <div class="flex w-full flex-col gap-1 md:w-auto md:grow">
@@ -508,14 +586,82 @@
             <MdiDelete />
           </Button>
         </div>
-        <Button type="button" size="sm" class="mt-2" @click="() => fieldTuples.push(['', ''])">
+        <Button type="button" size="touch" class="mt-2 w-fit" @click="() => fieldTuples.push(['', ''])">
           {{ $t("items.add") }}
         </Button>
       </div>
-    </div>
+    </header>
 
-    <section>
+    <section
+      class="min-w-0"
+      :aria-busy="phase === 'loading'"
+      :aria-label="$t('menu.search')"
+      data-testid="search-results"
+    >
+      <div class="mb-4 flex min-w-0 flex-wrap items-center justify-between gap-3">
+        <h2
+          v-if="phase !== 'error'"
+          class="min-w-0 break-words text-2xl font-bold tracking-tight text-foreground"
+          data-testid="search-count"
+          :role="phase === 'loading' ? 'status' : undefined"
+        >
+          {{ phase === "loading" ? $t("items.search_loading") : $t("items.results_count", { total }) }}
+        </h2>
+        <div
+          class="glass-tabs ml-auto shrink-0"
+          role="group"
+          :aria-label="$t('components.item.view.selectable.items')"
+          data-testid="search-view-toggle"
+        >
+          <button
+            type="button"
+            class="glass-focus"
+            :class="{ active: itemView === 'card' }"
+            :aria-pressed="itemView === 'card'"
+            data-testid="search-view-card"
+            @click="setItemView('card')"
+          >
+            {{ $t("components.item.view.selectable.card") }}
+          </button>
+          <button
+            type="button"
+            class="glass-focus"
+            :class="{ active: itemView === 'table' }"
+            :aria-pressed="itemView === 'table'"
+            data-testid="search-view-table"
+            @click="setItemView('table')"
+          >
+            {{ $t("components.item.view.selectable.table") }}
+          </button>
+        </div>
+      </div>
+
+      <div
+        v-if="phase === 'error'"
+        class="mb-3 flex max-w-prose flex-col items-start gap-3"
+        role="alert"
+        data-testid="search-error"
+      >
+        <p class="text-sm text-foreground">{{ $t("items.search_error") }}</p>
+        <Button type="button" variant="outline" size="touch" data-testid="search-retry" @click="search">
+          {{ $t("items.search_retry") }}
+        </Button>
+      </div>
+      <p
+        v-else-if="phase === 'empty'"
+        class="mb-3 max-w-prose text-sm text-foreground"
+        role="status"
+        data-testid="search-empty"
+      >
+        {{ $t("items.no_results") }}
+      </p>
+      <p v-else-if="phase === 'loading'" class="sr-only" data-testid="search-loading">
+        {{ $t("items.search_loading") }}
+      </p>
+
       <ItemViewSelectable
+        presentation="search"
+        :view="itemView"
         :items="items"
         :location-flat-tree="locationFlatTree"
         :pagination="pagination"
@@ -523,5 +669,5 @@
         @refresh="async () => search()"
       />
     </section>
-  </BaseContainer>
+  </div>
 </template>

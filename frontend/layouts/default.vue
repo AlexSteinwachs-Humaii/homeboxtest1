@@ -289,6 +289,7 @@
     shellNav,
     type ShellNavId,
   } from "~/lib/shell-nav";
+  import { submitInventorySearch } from "~/composables/use-inventory-search";
   import CollectionSelector from "~/components/Collection/Selector.vue";
   import CollectionCreateModal from "~/components/Collection/CreateModal.vue";
   import CollectionJoinModal from "~/components/Collection/JoinModal.vue";
@@ -316,9 +317,13 @@
   const search = ref("");
 
   const triggerSearch = () => {
-    const href = inventorySearchHref(search.value);
+    const raw = search.value;
     search.value = "";
-    navigateTo(href);
+    // Search owns the query while it is mounted so location, tag and options
+    // filters stay on the same route-backed pipeline. Elsewhere, enter Search.
+    if (!submitInventorySearch(raw)) {
+      navigateTo(inventorySearchHref(raw));
+    }
     if (document.activeElement && "blur" in document.activeElement) {
       (document.activeElement as HTMLElement).blur();
     }

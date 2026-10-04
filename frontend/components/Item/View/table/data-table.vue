@@ -34,6 +34,8 @@
     view: "table" | "card";
     locationFlatTree?: FlatTreeItem[];
     externalPagination?: Pagination;
+    /** Opt-in Search presentation. Omitted callers keep the existing table and cards. */
+    presentation?: "search";
   }>();
 
   defineEmits<{
@@ -241,7 +243,7 @@
         />
       </div>
       <div>
-        <TableView :table="table" :columns="columns" />
+        <TableView :table="table" :columns="columns" :presentation="presentation" />
       </div>
       <div v-if="!props.disableControls" class="border-t p-3">
         <DataTableControls
@@ -261,7 +263,12 @@
           :external-pagination="externalPagination"
         />
       </div>
-      <CardView :table="table" :location-flat-tree="locationFlatTree" @refresh="$emit('refresh')" />
+      <CardView
+        :table="table"
+        :location-flat-tree="locationFlatTree"
+        :presentation="presentation"
+        @refresh="$emit('refresh')"
+      />
       <div v-if="!props.disableControls" class="pt-2">
         <DataTableControls
           :table="table"
