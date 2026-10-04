@@ -311,6 +311,14 @@
         :presentation="presentation"
         @refresh="$emit('refresh')"
       />
+      <div v-if="!props.disableControls && presentation !== 'search'" class="pt-2">
+        <DataTableControls
+          :table="table"
+          :pagination="pagination"
+          :data-length="data.length"
+          :external-pagination="externalPagination"
+        />
+      </div>
     </div>
     <div v-if="presentation === 'search' && !props.disableControls" class="pt-4">
       <DataTableControls

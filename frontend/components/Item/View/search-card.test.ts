@@ -87,6 +87,17 @@ describe("search selection identity", () => {
 });
 
 describe("search card markup", () => {
+  test("preserves top and bottom card pagination for non-Search callers", () => {
+    const cardSection = dataTable.slice(
+      dataTable.indexOf("<div v-else>"),
+      dataTable.indexOf("<div v-if=\"presentation === 'search'")
+    );
+    expect(cardSection.match(/<DataTableControls/g)).toHaveLength(2);
+    expect(cardSection).toContain('class="pb-2"');
+    expect(cardSection).toContain('class="pt-2"');
+    expect(cardSection.match(/!props.disableControls && presentation !== 'search'/g)).toHaveLength(2);
+  });
+
   test("keeps a 48px selection strip outside the item link", () => {
     const branch = searchBranch(card);
     const strip = branch.indexOf("search-card-strip");
