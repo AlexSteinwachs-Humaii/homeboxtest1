@@ -1,6 +1,7 @@
 import type { Ref } from "vue";
 import type { EntitySummary } from "~/lib/api/types/data-contracts";
 import type { DaisyTheme } from "~~/lib/data/themes";
+import { DEFAULT_THEME, migrateThemePreferences } from "~~/lib/data/theme-preferences";
 
 export type ViewType = "table" | "card";
 
@@ -17,6 +18,7 @@ export type LocationViewPreferences = {
   editorAdvancedView: boolean;
   itemDisplayView: ViewType;
   theme: DaisyTheme;
+  claudeDarkThemeMigrationV1?: boolean;
   itemsPerTablePage: number;
   tableHeaders?: {
     value: keyof EntitySummary;
@@ -42,7 +44,10 @@ const DEFAULT_PREFERENCES: LocationViewPreferences = {
   showEmpty: true,
   editorAdvancedView: false,
   itemDisplayView: "card",
-  theme: "homebox",
+  theme: DEFAULT_THEME,
+  // False until the scope has actually been migrated; mergeDefaults must not
+  // make a legacy saved preference look like a completed migration.
+  claudeDarkThemeMigrationV1: false,
   itemsPerTablePage: 12,
   displayLegacyHeader: false,
   legacyImageFit: false,
@@ -69,6 +74,12 @@ let syncInitialized = false;
 const preferenceKeys = Object.keys(DEFAULT_PREFERENCES) as (keyof LocationViewPreferences)[];
 
 const results = useLocalStorage("homebox/preferences/location", DEFAULT_PREFERENCES, { mergeDefaults: true });
+if (import.meta.client) {
+  const migration = migrateThemePreferences(results.value);
+  if (migration.changed) {
+    results.value = migration.preferences as LocationViewPreferences;
+  }
+}
 
 function forEachSyncedPreference(callback: (key: keyof LocationViewPreferences) => void) {
   for (const key of preferenceKeys) {
@@ -229,6 +240,9 @@ export function useViewPreferencesSync() {
   let localRevision = 0;
   let syncedRevision = 0;
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
+  // The settings endpoint replaces the entire document. Keep unknown and
+  // non-synced server keys intact when persisting the theme migration.
+  let serverSettings: Record<string, unknown> = {};
 
   const scheduleRetry = () => {
     if (retryTimer !== null) {
@@ -259,7 +273,7 @@ export function useViewPreferencesSync() {
         const targetRevision = localRevision;
         let error = false;
         try {
-          ({ error } = await api.user.setSettings(buildSyncedSettings(preferences.value)));
+          ({ error } = await api.user.setSettings({ ...serverSettings, ...buildSyncedSettings(preferences.value) }));
         } catch {
           scheduleRetry();
           return;
@@ -302,10 +316,18 @@ export function useViewPreferencesSync() {
         try {
           const settings = await fetchViewPreferencesFromServer();
           if (settings) {
+            serverSettings = settings;
             const localChanges =
               localRevision === refreshRevision ? {} : getChangedPreferences(refreshSettings, preferences.value);
+            // Settings already synchronize across browsers. Migrate the server
+            // scope too, or its legacy theme would undo the startup migration.
+            // In-flight explicit user changes still win over this snapshot.
+            const migration = migrateThemePreferences(settings);
             applyingServerSnapshot = true;
-            preferences.value = mergeSyncedSettings(settings, preferences.value, localChanges);
+            preferences.value = mergeSyncedSettings(migration.preferences, preferences.value, localChanges);
+            if (migration.changed) {
+              localRevision += 1;
+            }
           }
         } finally {
           applyingServerSnapshot = false;

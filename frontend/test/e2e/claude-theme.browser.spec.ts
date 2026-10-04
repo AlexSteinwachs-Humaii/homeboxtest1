@@ -1,4 +1,4 @@
-import { expect as baseExpect, test } from "@playwright/test";
+import { expect as baseExpect, test, type Route } from "@playwright/test";
 
 const expect = baseExpect.configure({ timeout: 20000 });
 test.setTimeout(120000);
@@ -42,9 +42,11 @@ test("selects, persists, and renders Claude-inspired Dark independently of devic
   let settings: Record<string, unknown> = {
     theme: "homebox",
     showEmpty: false,
+    unknownSetting: { untouched: "preserve this" },
+    itemDisplayView: "table",
   };
   await context.addCookies([{ name: "hb.auth.session", value: "true", url: baseURL! }]);
-  await page.route("**/api/v1/**", async route => {
+  const mockApi = async (route: Route) => {
     const path = new URL(route.request().url()).pathname;
     let body: unknown = [];
     if (path.endsWith("/users/self/settings")) {
@@ -77,14 +79,23 @@ test("selects, persists, and renders Claude-inspired Dark independently of devic
       body = { items: [asset], total: 1 };
     }
     await route.fulfill({ json: body });
-  });
+  };
+  await context.route("**/api/v1/**", mockApi);
   await page.emulateMedia({ colorScheme: "light" });
+  await page.goto("/profile");
+  await page.evaluate(() => {
+    localStorage.setItem("homebox/preferences/location", JSON.stringify({ theme: "coffee", showEmpty: false }));
+    localStorage.setItem("theme-test-unrelated", "unchanged");
+  });
   await page.goto("/profile");
   const option = page.getByRole("button", {
     name: "Claude-inspired Dark",
     exact: true,
   });
   await expect(page.getByRole("button", { name: "Homebox", exact: true })).toBeVisible({ timeout: 20000 });
+  // Both the legacy browser scope and legacy account snapshot migrate once.
+  await expect(option).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => settings.claudeDarkThemeMigrationV1).toBe(true);
   await option.focus();
   await page.keyboard.press("Enter");
   await expect(option).toHaveAttribute("aria-pressed", "true");
@@ -131,4 +142,29 @@ test("selects, persists, and renders Claude-inspired Dark independently of devic
   await page.getByRole("button", { name: "Light", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await expect(page.locator("html")).not.toHaveClass(/theme-claude-dark/);
+  await expect.poll(() => settings.theme).toBe("light");
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  // A new tab simulates another session using the same durable scope.
+  const nextSession = await context.newPage();
+  await nextSession.goto("/profile");
+  await expect(nextSession.locator("html")).toHaveAttribute("data-theme", "light");
+  expect(await nextSession.evaluate(() => localStorage.getItem("theme-test-unrelated"))).toBe("unchanged");
+  expect(settings.showEmpty).toBe(false);
+  await nextSession.close();
+  expect(settings.unknownSetting).toEqual({ untouched: "preserve this" });
+  expect(settings.itemDisplayView).toBe("table");
+
+  // A fresh local scope must not migrate an already-migrated account again.
+  const freshBrowser = await context.browser()!.newContext({
+    baseURL,
+    storageState: { cookies: await context.cookies(), origins: [] },
+  });
+  await freshBrowser.route("**/api/v1/**", mockApi);
+  const freshPage = await freshBrowser.newPage();
+  await freshPage.goto("/profile");
+  await expect(freshPage.getByRole("button", { name: "Light", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(freshPage.locator("html")).toHaveAttribute("data-theme", "light");
+  expect(settings.theme).toBe("light");
+  await freshBrowser.close();
 });

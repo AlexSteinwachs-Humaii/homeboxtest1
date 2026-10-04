@@ -75,6 +75,7 @@ describe("Claude-inspired Dark", () => {
     const classes: string[] = [];
     const preference = JSON.stringify({
       theme: "claude-dark",
+      claudeDarkThemeMigrationV1: true,
       showEmpty: false,
     });
     runInNewContext(readFileSync(new URL("../../public/set-theme.js", import.meta.url), "utf8"), {
