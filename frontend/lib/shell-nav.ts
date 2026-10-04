@@ -64,3 +64,37 @@ export function inventorySearchHref(query: string): string {
   }
   return `/items?q=${encodeURIComponent(trimmed)}`;
 }
+
+const INVENTORY_RESULTS = "/items";
+
+function hasControlCharacter(value: string) {
+  for (let index = 0; index < value.length; index++) {
+    const code = value.charCodeAt(index);
+    if (code <= 31 || code === 127) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Back to Search. Accept only a same-app inventory results URL (optional query or hash).
+ * Anything else — another route, a scheme, a protocol-relative path, controls, or a backslash — falls back to /items.
+ */
+export function inventoryResultsBackHref(back: unknown): string {
+  if (typeof back !== "string" || back.length === 0 || back.length > 2048) {
+    return INVENTORY_RESULTS;
+  }
+  if (hasControlCharacter(back) || back.includes("\\")) {
+    return INVENTORY_RESULTS;
+  }
+
+  const hashAt = back.indexOf("#");
+  const beforeHash = hashAt === -1 ? back : back.slice(0, hashAt);
+  const queryAt = beforeHash.indexOf("?");
+  const path = queryAt === -1 ? beforeHash : beforeHash.slice(0, queryAt);
+  if (path !== INVENTORY_RESULTS || path.includes("//")) {
+    return INVENTORY_RESULTS;
+  }
+  return back;
+}

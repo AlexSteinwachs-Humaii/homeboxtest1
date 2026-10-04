@@ -1,7 +1,14 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { PROFILE_HREF, SHELL_NAV, inventorySearchHref, isProfileActive, isShellNavActive } from "../lib/shell-nav";
+import {
+  PROFILE_HREF,
+  SHELL_NAV,
+  inventoryResultsBackHref,
+  inventorySearchHref,
+  isProfileActive,
+  isShellNavActive,
+} from "../lib/shell-nav";
 
 const root = resolve(__dirname, "..");
 
@@ -48,6 +55,31 @@ describe("shell navigation", () => {
     expect(isShellNavActive("search", "/collection/settings")).toBe(false);
     expect(isProfileActive("/profile")).toBe(true);
     expect(isShellNavActive("home", "/profile")).toBe(false);
+  });
+
+  it("returns to the previous inventory results or a safe /items fallback", () => {
+    expect(inventoryResultsBackHref("/items")).toBe("/items");
+    expect(inventoryResultsBackHref("/items?q=cordless%20drill")).toBe("/items?q=cordless%20drill");
+    expect(inventoryResultsBackHref("/items?q=a&page=2")).toBe("/items?q=a&page=2");
+    expect(inventoryResultsBackHref("/items?q=http://example.com")).toBe("/items?q=http://example.com");
+    expect(inventoryResultsBackHref("/items#results")).toBe("/items#results");
+
+    expect(inventoryResultsBackHref(undefined)).toBe("/items");
+    expect(inventoryResultsBackHref(null)).toBe("/items");
+    expect(inventoryResultsBackHref("")).toBe("/items");
+    expect(inventoryResultsBackHref("/home")).toBe("/items");
+    expect(inventoryResultsBackHref("/item/item-1")).toBe("/items");
+    expect(inventoryResultsBackHref("/items/extra")).toBe("/items");
+    expect(inventoryResultsBackHref("/items/")).toBe("/items");
+    expect(inventoryResultsBackHref("//items")).toBe("/items");
+    expect(inventoryResultsBackHref("https://evil.example/items")).toBe("/items");
+    expect(inventoryResultsBackHref("/items/../admin")).toBe("/items");
+    expect(inventoryResultsBackHref("javascript:alert(1)")).toBe("/items");
+    expect(inventoryResultsBackHref("/\\items")).toBe("/items");
+    expect(inventoryResultsBackHref("/items?q=foo\nbar")).toBe("/items");
+    expect(inventoryResultsBackHref(" /items")).toBe("/items");
+    expect(inventoryResultsBackHref("/ITEMS")).toBe("/items");
+    expect(inventoryResultsBackHref("x".repeat(2049))).toBe("/items");
   });
 
   it("submits empty search into browsing and encodes queries", () => {
