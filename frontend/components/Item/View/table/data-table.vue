@@ -26,6 +26,7 @@
   import DataTableControls from "./data-table-controls.vue";
   import type { Pagination } from "../pagination";
   import Switch from "~/components/ui/switch/Switch.vue";
+  import { entityRowId, pruneRowSelection, sameSelection } from "./row-selection";
 
   const props = defineProps<{
     columns: ColumnDef<EntitySummary, TValue>[];
@@ -67,7 +68,7 @@
   const columnVisibility = ref<VisibilityState>(
     tableHeaders.value?.reduce((acc, h) => ({ ...acc, [h.value]: h.enabled }), {})
   );
-  const rowSelection = ref({});
+  const rowSelection = ref<Record<string, boolean>>({});
   const expanded = ref<ExpandedState>({});
   const pagination = ref({
     pageIndex: 0,
@@ -91,6 +92,7 @@
       return props.columns;
     },
 
+    getRowId: (row, index) => entityRowId(row, index),
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -170,6 +172,19 @@
 
   watch(() => pagination.value.pageIndex, scrollToTop);
   watch(() => props.externalPagination?.page, scrollToTop);
+
+  watch(
+    () => [props.view, props.presentation, props.data.map(row => row.id).join("\0")] as const,
+    () => {
+      const next = pruneRowSelection(
+        rowSelection.value,
+        props.data.map(row => row.id)
+      );
+      if (!sameSelection(rowSelection.value, next)) {
+        table.setRowSelection(next);
+      }
+    }
+  );
 </script>
 
 <template>

@@ -12,6 +12,11 @@
   import { useDialog } from "~/components/ui/dialog-provider";
   import { registerInventorySearch } from "~/composables/use-inventory-search";
   import type { ViewType } from "~~/composables/use-preferences";
+  import {
+    SEARCH_CARD_COMPACT_QUERY,
+    readCompactSearch,
+    searchResultsPageSize,
+  } from "~/components/Item/View/search-density";
   import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
   import { Label } from "@/components/ui/label";
   import { Switch } from "@/components/ui/switch";
@@ -110,8 +115,17 @@
   const qTag = useOptionalRouteQuery("tag", []);
 
   const preferences = useViewPreferences();
-  const pageSize = computed(() => preferences.value.itemsPerTablePage);
+  const compactSearch = ref(
+    readCompactSearch(typeof window === "undefined" ? undefined : query => window.matchMedia(query))
+  );
   const itemView = computed(() => preferences.value.itemDisplayView);
+  const pageSize = computed(() =>
+    searchResultsPageSize({
+      view: itemView.value,
+      compact: compactSearch.value,
+      tablePageSize: preferences.value.itemsPerTablePage,
+    })
+  );
 
   function setItemView(view: ViewType) {
     preferences.value.itemDisplayView = view;
@@ -119,6 +133,25 @@
 
   const route = useRoute();
   const router = useRouter();
+
+  watch(pageSize, (next, previous) => {
+    if (previous !== undefined && next !== previous && page.value !== 1) {
+      page.value = 1;
+    }
+  });
+
+  let compactQuery: MediaQueryList | null = null;
+  const syncCompact = () => {
+    compactSearch.value = compactQuery?.matches === true;
+  };
+  onMounted(() => {
+    compactQuery = window.matchMedia(SEARCH_CARD_COMPACT_QUERY);
+    syncCompact();
+    compactQuery.addEventListener("change", syncCompact);
+  });
+  onBeforeUnmount(() => {
+    compactQuery?.removeEventListener("change", syncCompact);
+  });
 
   onMounted(async () => {
     loading.value = true;

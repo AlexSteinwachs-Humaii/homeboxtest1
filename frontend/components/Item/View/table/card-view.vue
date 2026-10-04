@@ -19,6 +19,11 @@
   }>();
 
   const selectedCount = computed(() => props.table.getSelectedRowModel().rows.length);
+  const gridClass = computed(() =>
+    props.presentation === "search"
+      ? "grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
+      : "grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+  );
 </script>
 
 <template>
@@ -58,11 +63,12 @@
     <MdiSelectSearch class="size-10" />
     <p>{{ $t("items.no_results") }}</p>
   </div>
-  <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+  <div v-else :class="gridClass" :data-testid="presentation === 'search' ? 'search-card-grid' : undefined">
     <ItemCard
       v-for="item in table.getRowModel().rows"
       :key="item.original.id"
       :item="item.original"
+      :variant="presentation === 'search' ? 'search' : 'default'"
       :table-row="preferences.quickActions.enabled ? item : undefined"
       :location-flat-tree="locationFlatTree"
     />
