@@ -35,6 +35,16 @@ test("opens the same item from Home and search, and browses empty locations and 
   await expect(page.locator("a.glass-brand").first()).toBeVisible();
   await expect(page.getByTestId("shell-scan")).toBeVisible();
 
+  // Both surfaces use bg-secondary, so the neutral fallback must use its
+  // paired foreground token rather than low-contrast muted text.
+  const photoFallback = page.getByTestId("home-recent-no-photo").first();
+  await expect(photoFallback).toBeVisible();
+  const secondaryForeground = await page
+    .getByTestId("home-recent-location")
+    .first()
+    .evaluate(element => getComputedStyle(element).color);
+  await expect(photoFallback).toHaveCSS("color", secondaryForeground);
+
   const attic = page.getByTestId("home-location-card").filter({ hasText: "Attic" });
   await expect(attic).toBeVisible();
   await expect(attic.getByTestId("home-location-empty")).toHaveText("No items yet");

@@ -18,7 +18,7 @@
       />
       <div
         v-else
-        class="flex h-full flex-col items-center justify-center gap-1 px-3 text-muted-foreground"
+        class="flex h-full flex-col items-center justify-center gap-1 px-3 text-secondary-foreground"
         data-testid="home-recent-no-photo"
       >
         <svg class="size-8" viewBox="0 0 24 24" fill="none" aria-hidden="true">
