@@ -772,9 +772,12 @@
         "create_location": "Location",
         "create_tag": "Tag",
         "home": "Home",
+        "inventory_group": "Your inventory",
         "locations": "Locations",
         "maintenance": "Maintenance",
+        "manage_group": "Manage",
         "profile": "Profile",
+        "profile_and_preferences": "Profile & preferences",
         "scanner": "Scanner",
         "search": "Search",
         "templates": "Templates"

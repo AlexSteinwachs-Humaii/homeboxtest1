@@ -59,7 +59,7 @@
           </CommandItem>
           <CommandItem as-child value="collection-settings">
             <NuxtLink
-              to="/collection/members"
+              to="/collection/settings"
               class="glass-touch glass-focus flex w-full items-center"
               @click="open = false"
             >

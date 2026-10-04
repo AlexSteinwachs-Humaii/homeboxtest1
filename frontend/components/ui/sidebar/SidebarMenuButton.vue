@@ -37,7 +37,7 @@
 
   <Tooltip v-else>
     <TooltipTrigger as-child>
-      <SidebarMenuButtonChild v-bind="{ ...delegatedProps, ...$attrs }" :size="state === 'collapsed' ? 'default' : 'lg'" :class="state === 'collapsed' ? '' : 'text-xl'">
+      <SidebarMenuButtonChild v-bind="{ ...delegatedProps, ...$attrs }" :size="state === 'collapsed' ? 'default' : 'lg'">
         <slot />
       </SidebarMenuButtonChild>
     </TooltipTrigger>
