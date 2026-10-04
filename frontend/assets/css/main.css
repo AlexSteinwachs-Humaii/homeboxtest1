@@ -51,6 +51,44 @@
   */
 
   
+  /* Claude-inspired, not a branded reproduction. Explicitly dark on every device.
+   * Shared semantic tokens cover pages and teleported menus/dialogs alike.
+   * Primary also serves as link text, so it must contrast with dark surfaces.
+   */
+  .theme-claude-dark {
+    color-scheme: dark;
+    --background: 30 6% 13%;
+    --background-accent: 30 6% 22%;
+    --foreground: 40 23% 92%;
+    --primary: 18 52% 65%;
+    --primary-foreground: 20 20% 10%;
+    --secondary: 30 8% 28%;
+    --secondary-foreground: 40 23% 92%;
+    --accent: 20 18% 27%;
+    --accent-foreground: 40 23% 92%;
+    --muted: 30 6% 20%;
+    --muted-foreground: 35 12% 73%;
+    --card: 30 6% 16%;
+    --card-foreground: 40 23% 92%;
+    --popover: 30 6% 18%;
+    --popover-foreground: 40 23% 92%;
+    --destructive: 0 58% 68%;
+    --destructive-foreground: 0 25% 10%;
+    --input: 30 8% 48%;
+    --border: 30 8% 48%;
+    --ring: 18 52% 65%;
+    --sidebar-background: 30 6% 10%;
+    --sidebar-foreground: 40 23% 92%;
+    --sidebar-primary: 18 52% 65%;
+    --sidebar-primary-foreground: 20 20% 10%;
+    --sidebar-accent: 20 18% 27%;
+    --sidebar-accent-foreground: 40 23% 92%;
+    --sidebar-border: 30 8% 48%;
+    --sidebar-ring: 18 52% 65%;
+
+    --radius: 0.5rem;
+  }
+
   .theme-aqua {
     --background: 219 53% 43%;
     --background-accent: 219 53% 35%;
@@ -1076,4 +1114,47 @@ h6 {
   overflow-wrap: anywhere;
   word-break: normal;
   hyphens: auto;
+}
+/* Third-party calendars have their own palette rather than shadcn tokens. */
+.theme-claude-dark .dp__theme_dark {
+  --dp-background-color: hsl(var(--popover));
+  --dp-text-color: hsl(var(--popover-foreground));
+  --dp-hover-color: hsl(var(--accent));
+  --dp-hover-text-color: hsl(var(--accent-foreground));
+  --dp-hover-icon-color: hsl(var(--foreground));
+  --dp-primary-color: hsl(var(--primary));
+  --dp-primary-text-color: hsl(var(--primary-foreground));
+  --dp-primary-disabled-color: hsl(var(--muted));
+  --dp-secondary-color: hsl(var(--muted-foreground));
+  --dp-border-color: hsl(var(--border));
+  --dp-menu-border-color: hsl(var(--border));
+  --dp-border-color-hover: hsl(var(--ring));
+  --dp-border-color-focus: hsl(var(--ring));
+  --dp-disabled-color: hsl(var(--muted));
+  --dp-disabled-color-text: hsl(var(--muted-foreground));
+  --dp-icon-color: hsl(var(--muted-foreground));
+  --dp-scroll-bar-background: hsl(var(--popover));
+  --dp-scroll-bar-color: hsl(var(--border));
+  --dp-tooltip-color: hsl(var(--popover));
+  --dp-danger-color: hsl(var(--destructive));
+  --dp-marker-color: hsl(var(--primary));
+  --dp-success-color: hsl(145 35% 70%);
+  --dp-success-color-disabled: hsl(var(--muted-foreground));
+  --dp-highlight-color: hsl(var(--accent));
+}
+
+/* Scope feedback colors to this theme; keep status hues distinct from terracotta. */
+.theme-claude-dark [data-sonner-toaster] {
+  --success-bg: hsl(145 18% 17%);
+  --success-border: hsl(145 25% 48%);
+  --success-text: hsl(145 35% 78%);
+  --info-bg: hsl(210 18% 17%);
+  --info-border: hsl(210 25% 48%);
+  --info-text: hsl(210 45% 80%);
+  --warning-bg: hsl(40 18% 17%);
+  --warning-border: hsl(40 35% 48%);
+  --warning-text: hsl(40 60% 78%);
+  --error-bg: hsl(0 18% 17%);
+  --error-border: hsl(0 35% 48%);
+  --error-text: hsl(0 58% 80%);
 }

@@ -1,5 +1,6 @@
 export type DaisyTheme =
   | "homebox"
+  | "claude-dark"
   | "light"
   | "dark"
   | "cupcake"
@@ -36,6 +37,10 @@ export type ThemeOption = {
 };
 
 export const themes: ThemeOption[] = [
+  {
+    label: "Claude-inspired Dark",
+    value: "claude-dark",
+  },
   {
     label: "Homebox",
     value: "homebox",
@@ -155,6 +160,7 @@ export const themes: ThemeOption[] = [
 ];
 
 export const darkThemes: DaisyTheme[] = [
+  "claude-dark",
   "synthwave",
   "retro",
   "cyberpunk",

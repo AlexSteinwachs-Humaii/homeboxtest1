@@ -2,6 +2,7 @@
 export default {
   darkMode: ["class"],
   safelist: [
+    "theme-claude-dark",
     "dark",
     "theme-aqua",
     "theme-black",
