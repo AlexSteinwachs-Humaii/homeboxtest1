@@ -1,11 +1,26 @@
 <template>
-  <div class="border-t px-4 py-5 sm:p-0">
-    <dl class="sm:divide-y">
-      <div v-for="detail in details" :key="detail.name" class="group py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-        <dt class="text-sm font-medium">
+  <div :class="compact ? 'min-w-0 px-5 pb-3' : 'border-t px-4 py-5 sm:p-0'">
+    <dl :class="compact ? 'divide-y divide-border' : 'sm:divide-y'">
+      <div
+        v-for="detail in details"
+        :key="detail.name"
+        class="group min-w-0"
+        :class="
+          compact
+            ? 'grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.35fr)] items-start gap-x-4 gap-y-1 py-3 max-[280px]:grid-cols-1'
+            : 'py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6'
+        "
+      >
+        <dt
+          class="min-w-0 text-sm font-medium [overflow-wrap:anywhere]"
+          :class="compact ? 'text-muted-foreground' : undefined"
+        >
           {{ $t(detail.name) }}
         </dt>
-        <dd class="text-start text-sm sm:col-span-2">
+        <dd
+          class="min-w-0 text-sm [overflow-wrap:anywhere]"
+          :class="compact ? 'text-end font-semibold max-[280px]:text-start' : 'text-start sm:col-span-2'"
+        >
           <slot :name="detail.slot || detail.name" v-bind="{ detail }">
             <DateTime
               v-if="detail.type == 'date'"
@@ -21,7 +36,7 @@
                       :href="detail.href"
                       target="_blank"
                       rel="noopener noreferrer"
-                      :class="badgeVariants()"
+                      :class="[badgeVariants(), compact ? 'min-h-11 max-w-full' : '']"
                       class="gap-1"
                     >
                       <MdiOpenInNew />
@@ -37,28 +52,38 @@
             <template v-else-if="detail.type === 'markdown'">
               <ClientOnly>
                 <!-- eslint-disable-next-line tailwindcss/no-custom-classname -->
-                <div class="markdown-container w-full overflow-hidden break-words">
+                <div class="markdown-container w-full min-w-0 max-w-full break-words">
                   <Markdown :source="detail.text" />
                 </div>
               </ClientOnly>
             </template>
             <template v-else>
               <!-- Fixed version with improved overflow handling -->
-              <span class="flex w-full items-center break-words">
+              <span
+                class="flex w-full min-w-0 flex-wrap items-center gap-2"
+                :class="compact ? 'justify-end max-[280px]:justify-start' : ''"
+              >
                 <a
                   v-if="maybeUrl(detail.text.toString()).isUrl"
                   :href="maybeUrl(detail.text.toString()).url"
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="overflow-hidden break-all text-primary underline hover:text-primary/80"
+                  class="min-w-0 max-w-full text-primary underline [overflow-wrap:anywhere] hover:text-primary/80"
+                  :class="compact ? 'min-h-11' : ''"
                   >{{ detail.text }}</a
                 >
-                <span v-else class="overflow-hidden break-all">{{ detail.text }}</span>
+                <span v-else class="min-w-0 max-w-full [overflow-wrap:anywhere]">{{ detail.text }}</span>
                 <span
                   v-if="detail.copyable"
-                  class="my-0 ml-4 shrink-0 opacity-0 transition-opacity duration-75 group-hover:opacity-100"
+                  class="my-0 shrink-0"
+                  :class="compact ? '' : 'ml-2 opacity-0 transition-opacity duration-75 group-hover:opacity-100'"
                 >
-                  <CopyText v-if="detail.text.toString()" :text="detail.text.toString()" :icon-size="16" />
+                  <CopyText
+                    v-if="detail.text.toString()"
+                    :text="detail.text.toString()"
+                    :icon-size="16"
+                    :size="compact ? 'touch-icon' : 'icon'"
+                  />
                 </span>
               </span>
             </template>
@@ -79,12 +104,19 @@
   import Markdown from "@/components/global/Markdown.vue";
   import CopyText from "@/components/global/CopyText.vue";
 
-  defineProps({
+  const props = defineProps({
     details: {
       type: Object as () => (Detail | AnyDetail)[],
       required: true,
     },
+    /** Denser passive rows for item inspection. Other callers keep the default layout. */
+    variant: {
+      type: String as () => "default" | "compact",
+      default: "default",
+    },
   });
+
+  const compact = computed(() => props.variant === "compact");
 </script>
 
 <style>

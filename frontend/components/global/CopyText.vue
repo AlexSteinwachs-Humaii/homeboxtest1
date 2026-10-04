@@ -2,7 +2,7 @@
   <TooltipProvider :delay-duration="0">
     <Tooltip>
       <TooltipTrigger as-child>
-        <Button size="icon" variant="outline" class="relative" @click="copyText">
+        <Button :size="size" variant="outline" class="relative" @click="copyText">
           <div
             :data-copied="copied"
             class="group absolute inset-0 flex items-center justify-center transition-transform duration-300 data-[copied=true]:rotate-[360deg]"
@@ -83,6 +83,10 @@
     tooltip: {
       type: String as () => string,
       default: "",
+    },
+    size: {
+      type: String as () => "default" | "sm" | "lg" | "icon" | "touch" | "touch-icon",
+      default: "icon",
     },
   });
 
