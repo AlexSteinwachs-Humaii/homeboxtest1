@@ -37,3 +37,34 @@ export function inventorySearchHref(query: string): string {
   }
   return `/items?q=${encodeURIComponent(trimmed)}`;
 }
+
+/**
+ * Back to Search returns to inventory results. A previous same-app `/items`
+ * location, including its query, is kept. Anything else — another route, an
+ * absolute URL, a protocol-relative path — falls back to `/items`.
+ */
+export function inventoryResultsBackHref(back: unknown): string {
+  if (typeof back !== "string") {
+    return "/items";
+  }
+
+  const trimmed = back.trim();
+  if (!trimmed.startsWith("/") || trimmed.startsWith("//") || trimmed.includes("\\") || trimmed.includes("\0")) {
+    return "/items";
+  }
+
+  const withoutHash = trimmed.split("#")[0] ?? trimmed;
+  const queryIndex = withoutHash.indexOf("?");
+  const path = queryIndex === -1 ? withoutHash : withoutHash.slice(0, queryIndex);
+  const query = queryIndex === -1 ? "" : withoutHash.slice(queryIndex);
+
+  if (path !== "/items") {
+    return "/items";
+  }
+
+  if (query.includes("://") || /[\s<>]/.test(query)) {
+    return "/items";
+  }
+
+  return `/items${query}`;
+}

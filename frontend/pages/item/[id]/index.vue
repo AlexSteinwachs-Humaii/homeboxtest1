@@ -4,14 +4,14 @@
   import type { AnyDetail, Detail, Details } from "~~/components/global/DetailsSection/types";
   import { filterZeroValues } from "~~/components/global/DetailsSection/types";
   import type { ItemAttachment } from "~~/lib/api/types/data-contracts";
-  import MdiPackageVariant from "~icons/mdi/package-variant";
   import MdiPlus from "~icons/mdi/plus";
   import MdiMinus from "~icons/mdi/minus";
   import MdiDelete from "~icons/mdi/delete";
   import MdiPlusBoxMultipleOutline from "~icons/mdi/plus-box-multiple-outline";
   import MdiContentSaveEdit from "~icons/mdi/content-save-edit";
-  import MdiDotsVertical from "~icons/mdi/dots-vertical";
-  import { Separator } from "@/components/ui/separator";
+  import MdiChevronLeft from "~icons/mdi/chevron-left";
+  import MdiDotsHorizontal from "~icons/mdi/dots-horizontal";
+  import { inventoryResultsBackHref } from "~/lib/shell-nav";
   import {
     DropdownMenu,
     DropdownMenuContent,
@@ -26,13 +26,11 @@
     BreadcrumbList,
     BreadcrumbSeparator,
   } from "@/components/ui/breadcrumb";
-  import { Button, ButtonGroup } from "@/components/ui/button";
+  import { Button } from "@/components/ui/button";
   import { useDialog } from "@/components/ui/dialog-provider";
   import { Label } from "@/components/ui/label";
   import { Switch } from "@/components/ui/switch";
-  import { Card } from "@/components/ui/card";
   import { DialogID } from "~/components/ui/dialog-provider/utils";
-  import BaseContainer from "@/components/Base/Container.vue";
   import ItemImageDialog from "~/components/Item/ImageDialog.vue";
   import ItemDuplicateSettings from "~/components/Item/DuplicateSettings.vue";
   import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -55,7 +53,14 @@
   });
 
   const route = useRoute();
+  const router = useRouter();
   const api = useUserApi();
+
+  const backToSearch = computed(() => {
+    // Re-read history when moving between details, edit and maintenance.
+    void route.fullPath;
+    return inventoryResultsBackHref(router.options.history.state?.back);
+  });
 
   const itemId = computed<string>(() => route.params.id as string);
   const preferences = useViewPreferences();
@@ -478,6 +483,18 @@
     ];
   });
 
+  const activeSection = computed(() => tabs.value.find(tab => tab.to === currentPath.value)?.id ?? "details");
+
+  const EMPTY_ASSET_ID = "000-000";
+
+  const assetIdDisplay = computed(() => {
+    const id = item.value?.assetId?.trim() ?? "";
+    if (!id || id === EMPTY_ASSET_ID) {
+      return "";
+    }
+    return id;
+  });
+
   const fullpath = computedAsync(async () => {
     if (!item.value) {
       return [];
@@ -490,6 +507,14 @@
     }
 
     return resp.data;
+  });
+
+  const locationPath = computed(() => {
+    const path = fullpath.value ?? [];
+    if (!item.value) {
+      return [];
+    }
+    return path.filter(part => part.id !== item.value!.id);
   });
 
   const { data: items, refresh: refreshItemList } = useAsyncData(
@@ -628,7 +653,11 @@
 </script>
 
 <template>
-  <BaseContainer v-if="item">
+  <div
+    v-if="item"
+    class="glass-page mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-glass-section"
+    data-testid="item-page"
+  >
     <!-- set page title -->
     <Title>{{ item.name }}</Title>
 
@@ -652,112 +681,157 @@
       </DialogContent>
     </Dialog>
 
-    <section>
-      <Card class="p-3">
-        <header :class="{ 'mb-2': item.description }">
-          <div class="flex flex-wrap items-end gap-2">
-            <div
-              class="mb-auto flex size-12 items-center justify-center rounded-full bg-secondary text-secondary-foreground"
-            >
-              <MdiPackageVariant class="size-7" />
-            </div>
-            <div>
-              <Breadcrumb v-if="fullpath && fullpath.length > 0">
-                <BreadcrumbList>
-                  <BreadcrumbItem v-for="(part, idx) in fullpath" :key="part.id">
-                    <BreadcrumbLink
-                      v-if="idx < fullpath.length - 1"
-                      as-child
-                      class="text-foreground/70 hover:underline"
-                    >
-                      <NuxtLink :to="`/${part.type}/${part.id}`">
-                        {{ part.name }}
-                      </NuxtLink>
-                    </BreadcrumbLink>
-                    <template v-else>
-                      {{ part.name }}
-                    </template>
-                    <BreadcrumbSeparator v-if="idx < fullpath.length - 1" :key="`sep-${part.id}`" />
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
-              <h1 class="text-wrap pb-1 text-2xl">
-                {{ item ? item.name : "" }}
-              </h1>
-              <div class="flex flex-wrap gap-2 pb-1">
-                <TagChip v-for="tag in itemTags" :key="tag.id" :tag="tag" size="sm" :ancestors="tag.ancestors" />
-              </div>
-              <div class="flex flex-wrap gap-1 text-wrap text-xs">
-                <div>
-                  {{ $t("items.created_at") }}
-                  <DateTime :date="item?.createdAt" />
-                </div>
-                -
-                <div>
-                  {{ $t("items.updated_at") }}
-                  <DateTime :date="item?.updatedAt" />
-                </div>
-              </div>
-            </div>
-            <div class="ml-auto mt-2 flex flex-wrap items-center justify-between gap-2">
-              <LabelMaker
-                v-if="typeof item.assetId === 'string' && item.assetId != ''"
-                :id="item.assetId"
-                type="asset"
-              />
-              <LabelMaker v-else :id="item.id" type="item" />
-              <Button class="w-9 md:w-auto" :aria-label="$t('global.create_subitem')" @click="createSubitem">
-                <MdiPlus />
-                <span class="hidden md:inline">{{ $t("global.create_subitem") }}</span>
-              </Button>
+    <section class="glass-section min-w-0" data-testid="item-identity">
+      <NuxtLink
+        :to="backToSearch"
+        class="glass-touch glass-focus inline-flex w-fit max-w-full items-center gap-1 rounded-full px-2 text-sm font-semibold text-primary"
+        data-testid="item-back-to-search"
+      >
+        <MdiChevronLeft class="size-5 shrink-0" aria-hidden="true" />
+        <span class="min-w-0 break-words">{{ $t("items.back_to_search") }}</span>
+      </NuxtLink>
 
-              <!-- More actions dropdown -->
-              <DropdownMenu>
-                <DropdownMenuTrigger as-child>
-                  <Button variant="outline" size="icon" :aria-label="$t('global.more_actions')">
-                    <MdiDotsVertical class="size-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" class="w-48">
-                  <DropdownMenuItem @click="handleDuplicateClick">
-                    <MdiPlusBoxMultipleOutline class="mr-2 size-4" />
-                    {{ $t("global.duplicate") }}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem @click="saveAsTemplate">
-                    <MdiContentSaveEdit class="mr-2 size-4" />
-                    {{ $t("components.template.save_as_template") }}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem class="text-destructive focus:text-destructive" @click="deleteItem">
-                    <MdiDelete class="mr-2 size-4" />
-                    {{ $t("global.delete") }}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </header>
-        <Separator v-if="item.description" />
-        <div v-if="item.description" class="prose max-w-full p-1">
-          <Markdown class="text-base" :source="item.description" />
-        </div>
-      </Card>
+      <nav v-if="locationPath.length > 0" :aria-label="$t('items.location_hierarchy')" data-testid="item-location">
+        <Breadcrumb>
+          <BreadcrumbList class="gap-1">
+            <BreadcrumbItem v-for="(part, idx) in locationPath" :key="part.id" class="min-w-0">
+              <BreadcrumbLink as-child>
+                <NuxtLink
+                  :to="`/${part.type}/${part.id}`"
+                  class="glass-focus inline-flex min-h-11 min-w-11 max-w-full items-center rounded-full px-2 text-sm text-muted-foreground [overflow-wrap:anywhere]"
+                >
+                  {{ part.name }}
+                </NuxtLink>
+              </BreadcrumbLink>
+              <BreadcrumbSeparator v-if="idx < locationPath.length - 1" />
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </nav>
 
-      <div class="mb-6 mt-3 flex min-w-0 max-w-full flex-wrap items-center justify-between">
-        <ButtonGroup class="w-full max-w-full flex-wrap">
-          <Button
-            v-for="tab in tabs"
-            :key="tab.id"
-            as-child
-            :variant="tab.to === currentPath ? 'default' : 'outline'"
-            size="sm"
+      <div class="flex min-w-0 flex-wrap items-start justify-between gap-x-4 gap-y-3">
+        <div class="min-w-0 flex-1 basis-64">
+          <h1 class="glass-title break-words [overflow-wrap:anywhere]" data-testid="item-name">
+            {{ item.name }}
+          </h1>
+          <div
+            v-if="itemTags.length > 0"
+            class="mt-3 flex min-w-0 flex-wrap gap-2"
+            data-item-tags
+            data-testid="item-tags"
           >
-            <NuxtLink :to="tab.to">
-              {{ $t(tab.name) }}
+            <TagChip v-for="tag in itemTags" :key="tag.id" :tag="tag" size="md" :ancestors="tag.ancestors" />
+          </div>
+        </div>
+        <div class="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:shrink-0">
+          <Button as-child variant="action" size="touch" class="shrink-0">
+            <NuxtLink :to="`/item/${itemId}/edit`" data-testid="item-edit">
+              {{ $t("items.edit_item") }}
             </NuxtLink>
           </Button>
-        </ButtonGroup>
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <Button
+                variant="glass"
+                size="touch"
+                class="shrink-0"
+                :aria-label="$t('global.more_actions')"
+                data-testid="item-more"
+              >
+                <MdiDotsHorizontal aria-hidden="true" />
+                {{ $t("global.more") }}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" class="w-auto min-w-56 max-w-[min(24rem,calc(100vw-2rem))]">
+              <DropdownMenuItem class="glass-focus min-h-11" @click="handleDuplicateClick">
+                <MdiPlusBoxMultipleOutline class="mr-2 size-4" />
+                {{ $t("global.duplicate") }}
+              </DropdownMenuItem>
+              <DropdownMenuItem class="glass-focus min-h-11" @click="saveAsTemplate">
+                <MdiContentSaveEdit class="mr-2 size-4" />
+                {{ $t("components.template.save_as_template") }}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                class="glass-focus min-h-11 text-destructive focus:text-destructive"
+                @click="deleteItem"
+              >
+                <MdiDelete class="mr-2 size-4" />
+                {{ $t("global.delete") }}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <div class="max-w-full overflow-x-auto p-2" data-testid="item-label-maker">
+                <LabelMaker
+                  v-if="typeof item.assetId === 'string' && item.assetId != ''"
+                  :id="item.assetId"
+                  type="asset"
+                />
+                <LabelMaker v-else :id="item.id" type="item" />
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
+
+      <div class="glass-panel min-w-0 px-4 py-5 shadow-sm md:px-6" data-testid="item-summary">
+        <p class="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+          <span class="glass-eyebrow shrink-0">{{ $t("items.asset_id") }}</span>
+          <span
+            class="min-w-0 text-base font-semibold tracking-normal [overflow-wrap:anywhere]"
+            data-testid="item-asset-id"
+          >
+            {{ assetIdDisplay || $t("items.not_recorded") }}
+          </span>
+        </p>
+        <div v-if="item.description" class="prose mt-3 max-w-full break-words" data-testid="item-description">
+          <Markdown class="text-base" :source="item.description" />
+        </div>
+        <div class="mt-4 flex min-w-0 flex-wrap items-end justify-between gap-4 border-t border-border pt-4">
+          <dl class="flex min-w-0 flex-wrap gap-x-8 gap-y-3">
+            <div class="min-w-0">
+              <dd class="text-3xl font-bold leading-none [overflow-wrap:anywhere]" data-testid="item-quantity">
+                {{ item.quantity }}
+              </dd>
+              <dt class="mt-1 text-sm text-muted-foreground">{{ $t("global.quantity") }}</dt>
+            </div>
+            <div class="min-w-0">
+              <dd
+                class="text-2xl font-bold leading-tight [overflow-wrap:anywhere]"
+                :class="item.insured ? 'text-primary' : 'text-foreground'"
+                data-testid="item-insured"
+              >
+                {{ item.insured ? $t("items.search_card_insured") : $t("items.search_card_not_insured") }}
+              </dd>
+              <dt class="mt-1 text-sm text-muted-foreground">{{ $t("items.coverage") }}</dt>
+            </div>
+          </dl>
+          <Button
+            type="button"
+            variant="glass"
+            size="touch"
+            class="shrink-0"
+            data-testid="item-create-subitem"
+            @click="createSubitem"
+          >
+            <MdiPlus />
+            {{ $t("global.create_subitem") }}
+          </Button>
+        </div>
+      </div>
+
+      <nav class="glass-tabs" :aria-label="$t('items.sections')" data-testid="item-sections">
+        <NuxtLink
+          v-for="tab in tabs"
+          :key="tab.id"
+          :to="tab.to"
+          class="glass-focus inline-flex max-w-full items-center justify-center text-center"
+          :class="{ active: tab.id === activeSection }"
+          :aria-current="tab.id === activeSection ? 'page' : undefined"
+          :data-state="tab.id === activeSection ? 'active' : 'inactive'"
+        >
+          {{ $t(tab.name) }}
+        </NuxtLink>
+      </nav>
     </section>
 
     <section>
@@ -781,16 +855,30 @@
           </template>
           <DetailsSection :details="itemDetails">
             <template #quantity="{ detail }">
-              <div class="flex items-center">
-                {{ detail.text }}
-                <span
-                  class="my-0 ml-4 inline-flex gap-2 opacity-10 transition-opacity duration-75 group-hover:opacity-100"
-                >
-                  <Button size="icon" variant="outline" class="size-8 rounded-full" @click="adjustQuantity(-1)">
-                    <MdiMinus class="size-3" />
+              <div class="flex min-w-0 flex-wrap items-center gap-2">
+                <span class="min-w-0 [overflow-wrap:anywhere]">{{ detail.text }}</span>
+                <span class="inline-flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="touch-icon"
+                    variant="outline"
+                    class="rounded-full"
+                    :aria-label="$t('items.decrease_quantity')"
+                    data-testid="item-quantity-decrease"
+                    @click="adjustQuantity(-1)"
+                  >
+                    <MdiMinus />
                   </Button>
-                  <Button size="icon" variant="outline" class="size-8 rounded-full" @click="adjustQuantity(1)">
-                    <MdiPlus class="size-3" />
+                  <Button
+                    type="button"
+                    size="touch-icon"
+                    variant="outline"
+                    class="rounded-full"
+                    :aria-label="$t('items.increase_quantity')"
+                    data-testid="item-quantity-increase"
+                    @click="adjustQuantity(1)"
+                  >
+                    <MdiPlus />
                   </Button>
                 </span>
               </div>
@@ -864,15 +952,45 @@
       </div>
     </section>
 
-    <section v-if="items && items.length > 0" class="mt-6">
+    <section v-if="items && items.length > 0">
       <ItemViewSelectable :items="items" @refresh="refreshItemList" />
     </section>
-  </BaseContainer>
+
+    <footer
+      class="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm text-muted-foreground"
+      data-testid="item-timestamps"
+    >
+      <div class="min-w-0 break-words">
+        {{ $t("items.created_at") }}
+        <DateTime :date="item.createdAt" />
+      </div>
+      <div class="min-w-0 break-words">
+        {{ $t("items.updated_at") }}
+        <DateTime :date="item.updatedAt" />
+      </div>
+    </footer>
+  </div>
 </template>
 
 <style lang="css" scoped>
   /* Style dialog background */
   dialog::backdrop {
     background: rgba(0, 0, 0, 0.5);
+  }
+
+  /* Tag chips stay links; this route only gives them a touch target and a visible focus ring. */
+  [data-item-tags] :deep(a) {
+    align-items: center;
+    max-width: 100%;
+    min-height: var(--glass-touch);
+    min-width: var(--glass-touch);
+    overflow-wrap: anywhere;
+    padding-inline: 0.875rem;
+  }
+
+  [data-item-tags] :deep(a:focus-visible) {
+    outline: 2px solid hsl(var(--glass-focus));
+    outline-offset: 3px;
+    box-shadow: 0 0 0 3px hsl(var(--background));
   }
 </style>

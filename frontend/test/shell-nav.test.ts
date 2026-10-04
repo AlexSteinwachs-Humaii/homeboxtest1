@@ -2,7 +2,14 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { activeShellNav, inventorySearchHref, profileActive, profileDestination, shellNav } from "../lib/shell-nav";
+import {
+  activeShellNav,
+  inventoryResultsBackHref,
+  inventorySearchHref,
+  profileActive,
+  profileDestination,
+  shellNav,
+} from "../lib/shell-nav";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const layout = readFileSync(resolve(here, "../layouts/default.vue"), "utf8");
@@ -57,6 +64,24 @@ describe("Glass shell navigation", () => {
     expect(inventorySearchHref("   ")).toBe("/items");
     expect(inventorySearchHref("cordless drill")).toBe("/items?q=cordless%20drill");
     expect(inventorySearchHref("a&b")).toBe("/items?q=a%26b");
+  });
+
+  it("keeps a previous inventory search and otherwise falls back to /items", () => {
+    expect(inventoryResultsBackHref(undefined)).toBe("/items");
+    expect(inventoryResultsBackHref(null)).toBe("/items");
+    expect(inventoryResultsBackHref("/items")).toBe("/items");
+    expect(inventoryResultsBackHref("/items?q=drill&page=2")).toBe("/items?q=drill&page=2");
+    expect(inventoryResultsBackHref("  /items?q=shelf  ")).toBe("/items?q=shelf");
+    expect(inventoryResultsBackHref("/items?q=drill#results")).toBe("/items?q=drill");
+    expect(inventoryResultsBackHref("/item/abc")).toBe("/items");
+    expect(inventoryResultsBackHref("/item/abc/edit")).toBe("/items");
+    expect(inventoryResultsBackHref("/home")).toBe("/items");
+    expect(inventoryResultsBackHref("/items/extra")).toBe("/items");
+    expect(inventoryResultsBackHref("https://evil.example/items?q=drill")).toBe("/items");
+    expect(inventoryResultsBackHref("//evil.example/items")).toBe("/items");
+    expect(inventoryResultsBackHref("/items/../admin")).toBe("/items");
+    expect(inventoryResultsBackHref("/items?next=https://evil.example")).toBe("/items");
+    expect(inventoryResultsBackHref("/items?q=a b")).toBe("/items");
   });
 
   it("keeps search, scan permission handling, create, profile and sign-out in the shell", () => {
