@@ -504,7 +504,20 @@
         "total_items": "Total Items",
         "total_locations": "Total Locations",
         "total_tags": "Total Tags",
-        "total_value": "Total Value"
+        "total_value": "Total Value",
+        "kicker": "A place for everything",
+        "tagline": "Everything you own. Right where it belongs.",
+        "stat_value": "Total value",
+        "stat_items": "Items",
+        "stat_locations": "Locations",
+        "stat_tags": "Tags",
+        "currency_label": "Currency",
+        "loading_name": "Loading collection…",
+        "loading_stats": "Loading statistics…",
+        "stats_error": "Could not load collection statistics.",
+        "retry": "Retry",
+        "empty": "This collection is empty. Create an item when you are ready.",
+        "no_collection": "Select a collection to see what you own."
     },
     "index": {
         "back_to_login": "Back to login",

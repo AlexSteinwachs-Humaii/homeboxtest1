@@ -73,9 +73,11 @@ export class Requests {
   private async do<T>(method: Method, rargs: RequestArgs<unknown>): Promise<TResponse<T>> {
     const payload: RequestInit = {
       method,
+      // Per-request headers win so an explicit X-Tenant (group.get / stats.group)
+      // is not replaced by the client default from the active collection.
       headers: {
-        ...rargs.headers,
         ...this.headers,
+        ...rargs.headers,
       } as Record<string, string>,
     };
 
