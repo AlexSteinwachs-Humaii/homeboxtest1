@@ -1,8 +1,7 @@
 <script setup lang="ts">
   import { useI18n } from "vue-i18n";
   import BaseContainer from "@/components/Base/Container.vue";
-  import { Card } from "@/components/ui/card";
-  import { Button, ButtonGroup } from "@/components/ui/button";
+  import { Button } from "@/components/ui/button";
   import { toast } from "@/components/ui/sonner";
 
   import MdiAccountMultiple from "~icons/mdi/account-multiple";
@@ -11,12 +10,18 @@
   import MdiCog from "~icons/mdi/cog";
   import MdiShape from "~icons/mdi/shape";
   import MdiWrench from "~icons/mdi/wrench";
-  import MdiLogout from "~icons/mdi/logout";
-  import MdiDelete from "~icons/mdi/delete";
+  import type { Component } from "vue";
   import type { UserSummary } from "~/lib/api/types/data-contracts";
+  import {
+    COLLECTION_ADMIN_TABS,
+    collectionDestructiveAction,
+    isCollectionAdminTabActive,
+    isCollectionSettingsPath,
+    type CollectionAdminTabId,
+  } from "~/lib/collection-admin";
 
   definePageMeta({
-    middleware: ["auth"],
+    middleware: ["auth", "collection-root"],
   });
 
   const { t } = useI18n();
@@ -24,55 +29,34 @@
   useHead({ title: `HomeBox | ${t("menu.collection")}` });
 
   const route = useRoute();
+
   const api = useUserApi();
   const auth = useAuthContext();
   const confirm = useConfirm();
 
-  const currentPath = computed(() => route.path);
+  const tabIcons: Record<CollectionAdminTabId, Component> = {
+    members: MdiAccountMultiple,
+    invites: MdiEmailPlus,
+    notifiers: MdiBell,
+    settings: MdiCog,
+    "entity-types": MdiShape,
+    tools: MdiWrench,
+  };
 
-  const tabs = computed(() => [
-    {
-      id: "members",
-      label: "collection.tabs.members",
-      to: "/collection/members",
-      icon: MdiAccountMultiple,
-    },
-    {
-      id: "invites",
-      label: "collection.tabs.invites",
-      to: "/collection/invites",
-      icon: MdiEmailPlus,
-    },
-    {
-      id: "notifiers",
-      label: "collection.tabs.notifiers",
-      to: "/collection/notifiers",
-      icon: MdiBell,
-    },
-    {
-      id: "settings",
-      label: "collection.tabs.settings",
-      to: "/collection/settings",
-      icon: MdiCog,
-    },
-    {
-      id: "entity-types",
-      label: "collection.tabs.entity_types",
-      to: "/collection/entity-types",
-      icon: MdiShape,
-    },
-    {
-      id: "tools",
-      label: "collection.tabs.tools",
-      to: "/collection/tools",
-      icon: MdiWrench,
-    },
-  ]);
+  const tabs = computed(() =>
+    COLLECTION_ADMIN_TABS.map(tab => ({
+      ...tab,
+      icon: tabIcons[tab.id],
+    }))
+  );
+
+  const onSettings = computed(() => isCollectionSettingsPath(route.path));
 
   const { selectedCollection, load: reloadCollections } = useCollections();
 
   const members = ref<Array<UserSummary>>([]);
   const membersLoading = ref(false);
+  const membershipKnown = ref(false);
   const actionLoading = ref(false);
 
   const currentUserId = computed(() => auth.user?.id ?? "");
@@ -84,17 +68,35 @@
     const member = members.value[0];
     return Boolean(member && member.id && member.id === currentUserId.value);
   });
-  const isActionDisabled = computed(() => !selectedCollection.value || membersLoading.value || actionLoading.value);
+
+  const destructiveKind = computed(() =>
+    collectionDestructiveAction({
+      hasCollection: Boolean(selectedCollection.value),
+      membershipKnown: membershipKnown.value,
+      isOnlyMember: isOnlyMember.value,
+    })
+  );
+
+  const isActionDisabled = computed(
+    () => !selectedCollection.value || !membershipKnown.value || membersLoading.value || actionLoading.value
+  );
 
   const loadMembers = async () => {
-    if (!selectedCollection.value) {
+    const collectionId = selectedCollection.value?.id;
+    if (!collectionId) {
       members.value = [];
+      membershipKnown.value = false;
+      membersLoading.value = false;
       return;
     }
 
     membersLoading.value = true;
+    membershipKnown.value = false;
     try {
       const res = await api.group.getMembers();
+      if (selectedCollection.value?.id !== collectionId) {
+        return;
+      }
       if (res.error) {
         const msg = t("errors.api_failure") + String(res.error);
         toast.error(msg);
@@ -103,17 +105,24 @@
         members.value = Array.isArray(res.data) ? (res.data as Array<UserSummary>) : [];
       }
     } catch (e) {
+      if (selectedCollection.value?.id !== collectionId) {
+        return;
+      }
       const msg = (e as Error).message ?? String(e);
       toast.error(msg);
       members.value = [];
     } finally {
-      membersLoading.value = false;
+      if (selectedCollection.value?.id === collectionId) {
+        membersLoading.value = false;
+        membershipKnown.value = true;
+      }
     }
   };
 
   watch(
     () => selectedCollection.value?.id,
     () => {
+      membershipKnown.value = false;
       void loadMembers();
     },
     { immediate: true }
@@ -190,9 +199,9 @@
   };
 
   const handleCollectionPrimaryAction = async () => {
-    if (!selectedCollection.value) return;
+    if (!selectedCollection.value || destructiveKind.value === "checking") return;
 
-    if (isOnlyMember.value) {
+    if (destructiveKind.value === "delete") {
       await handleDeleteCollection();
     } else {
       await handleLeaveCollection();
@@ -201,60 +210,86 @@
 </script>
 
 <template>
-  <BaseContainer>
-    <Title>{{ t("menu.collection_options") }}</Title>
-
-    <section>
-      <Card class="p-3">
-        <header>
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h1 class="text-2xl">
-                {{
-                  selectedCollection?.name
-                    ? t("collection.manage_collection") + " - " + selectedCollection.name
-                    : t("global.loading")
-                }}
-              </h1>
-            </div>
-          </div>
-        </header>
-      </Card>
-
-      <div class="my-3 flex flex-wrap items-center justify-between gap-2">
-        <ButtonGroup class="flex max-w-full flex-wrap">
-          <Button
-            v-for="tab in tabs"
-            :key="tab.id"
-            as-child
-            :variant="tab.to === currentPath ? 'default' : 'outline'"
-            size="sm"
-          >
-            <NuxtLink :to="tab.to" class="flex items-center gap-2">
-              <component :is="tab.icon" v-if="tab.icon" class="size-4" />
-              <span class="hidden sm:block">{{ t(tab.label) }}</span>
-            </NuxtLink>
-          </Button>
-        </ButtonGroup>
-
-        <div id="collection-header-actions" class="ml-auto flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="icon"
-            class="size-8"
-            :aria-label="$t(isOnlyMember ? 'collection.delete_collection' : 'collection.leave_collection')"
-            :disabled="isActionDisabled"
-            @click="handleCollectionPrimaryAction"
-          >
-            <component :is="isOnlyMember ? MdiDelete : MdiLogout" class="size-4" />
-          </Button>
-        </div>
+  <BaseContainer class="flex flex-col gap-6">
+    <header class="flex items-start justify-between gap-3">
+      <div class="min-w-0">
+        <p class="glass-kicker" data-testid="collection-kicker">
+          {{ t("menu.group_manage") }}
+          <span v-if="selectedCollection?.name"> / {{ selectedCollection.name }}</span>
+        </p>
+        <h1 class="mt-1 text-3xl font-semibold tracking-tight text-foreground" data-testid="collection-heading">
+          {{ t("menu.collection") }}
+        </h1>
+        <p class="mt-1 text-sm text-muted-foreground">{{ t("collection.subtitle") }}</p>
       </div>
+      <!-- Invites teleports Create Invite here. Leave/delete is not in this slot. -->
+      <div id="collection-header-actions" class="flex shrink-0 items-center gap-1" />
+    </header>
+
+    <nav class="collection-admin-nav glass-tabs" :aria-label="t('collection.admin_nav')" data-testid="collection-admin">
+      <NuxtLink
+        v-for="tab in tabs"
+        :key="tab.id"
+        :to="tab.to"
+        class="collection-admin-link glass-focus"
+        :aria-current="isCollectionAdminTabActive(tab.to, route.path) ? 'page' : undefined"
+        :data-testid="`collection-admin-${tab.id}`"
+      >
+        <component :is="tab.icon" v-if="tab.icon" class="size-4 shrink-0" aria-hidden="true" />
+        <span>{{ t(tab.labelKey) }}</span>
+      </NuxtLink>
+    </nav>
+
+    <section class="min-w-0">
+      <NuxtPage />
     </section>
 
-    <section>
-      <div class="space-y-6">
-        <NuxtPage />
+    <section
+      v-if="onSettings"
+      class="border-t border-border pt-6"
+      data-testid="collection-danger-zone"
+      :data-action="destructiveKind"
+      aria-labelledby="collection-danger-heading"
+    >
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="min-w-0">
+          <h2 id="collection-danger-heading" class="text-base font-semibold text-foreground">
+            {{
+              destructiveKind === "delete"
+                ? t("collection.danger_delete_title")
+                : destructiveKind === "leave"
+                  ? t("collection.danger_leave_title")
+                  : t("collection.danger_checking_title")
+            }}
+          </h2>
+          <p class="mt-1 text-sm text-muted-foreground">
+            {{
+              destructiveKind === "delete"
+                ? t("collection.danger_delete_hint")
+                : destructiveKind === "leave"
+                  ? t("collection.danger_leave_hint")
+                  : t("collection.danger_checking_hint")
+            }}
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="touch"
+          class="h-auto min-h-touch shrink-0 whitespace-normal text-destructive"
+          data-testid="collection-danger-action"
+          :disabled="isActionDisabled"
+          :aria-busy="actionLoading || membersLoading"
+          @click="handleCollectionPrimaryAction"
+        >
+          {{
+            destructiveKind === "delete"
+              ? t("collection.delete_collection")
+              : destructiveKind === "leave"
+                ? t("collection.leave_collection")
+                : t("collection.checking_membership")
+          }}
+        </Button>
       </div>
     </section>
   </BaseContainer>
