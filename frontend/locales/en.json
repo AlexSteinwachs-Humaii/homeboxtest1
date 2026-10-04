@@ -504,7 +504,21 @@
         "total_items": "Total Items",
         "total_locations": "Total Locations",
         "total_tags": "Total Tags",
-        "total_value": "Total Value"
+        "total_value": "Total Value",
+        "eyebrow": "A place for everything",
+        "subtitle": "Everything you own. Right where it belongs.",
+        "stat_value": "Total value",
+        "stat_items": "Items",
+        "stat_locations": "Locations",
+        "stat_tags": "Tags",
+        "identity": "{name} · {currency}",
+        "unnamed": "Untitled collection",
+        "loading": "Loading your collection",
+        "load_error": "Could not load this collection. Try again — these are not your inventory totals.",
+        "retry": "Try again",
+        "empty": "This collection is empty. Create an item when you are ready.",
+        "no_collection_title": "No collection selected",
+        "no_collection": "No collection is selected. Choose one from the menu, or create a collection to see your inventory."
     },
     "index": {
         "back_to_login": "Back to login",

@@ -74,8 +74,11 @@ export class Requests {
     const payload: RequestInit = {
       method,
       headers: {
-        ...rargs.headers,
+        // Call-site headers win so a request can name its collection. Group
+        // reads pass X-Tenant for a specific id; the client default must not
+        // hide that and serve another collection's data.
         ...this.headers,
+        ...rargs.headers,
       } as Record<string, string>,
     };
 
