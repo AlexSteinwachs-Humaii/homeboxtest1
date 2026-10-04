@@ -25,6 +25,7 @@
   import CardView from "./card-view.vue";
   import DataTableControls from "./data-table-controls.vue";
   import type { Pagination } from "../pagination";
+  import { entityRowId, pruneRowSelection, sameRowSelection } from "./row-selection";
   import Switch from "~/components/ui/switch/Switch.vue";
 
   const props = defineProps<{
@@ -90,6 +91,7 @@
       return props.columns;
     },
 
+    getRowId: (row, index) => entityRowId(row, index),
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -169,6 +171,14 @@
 
   watch(() => pagination.value.pageIndex, scrollToTop);
   watch(() => props.externalPagination?.page, scrollToTop);
+
+  const resultRowIds = computed(() => props.data.map((row, index) => entityRowId(row, index)));
+  watch(resultRowIds, ids => {
+    const next = pruneRowSelection(rowSelection.value, ids);
+    if (!sameRowSelection(rowSelection.value, next)) {
+      rowSelection.value = next;
+    }
+  });
 </script>
 
 <template>

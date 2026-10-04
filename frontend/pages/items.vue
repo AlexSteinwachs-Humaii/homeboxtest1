@@ -13,6 +13,11 @@
   import { DialogID } from "@/components/ui/dialog-provider/utils";
   import { useDialog } from "~/components/ui/dialog-provider";
   import { registerInventorySearch } from "~/composables/use-inventory-search";
+  import {
+    isCompactSearchViewport,
+    SEARCH_COMPACT_QUERY,
+    searchResultsPageSize,
+  } from "~/components/Item/View/search-density";
   import type { ViewType } from "~~/composables/use-preferences";
   import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
   import { Label } from "@/components/ui/label";
@@ -101,8 +106,23 @@
   const qTag = useOptionalRouteQuery("tag", []);
 
   const preferences = useViewPreferences();
-  const pageSize = computed(() => preferences.value.itemsPerTablePage);
+  const compactSearch = ref(isCompactSearchViewport());
   const itemView = computed(() => preferences.value.itemDisplayView);
+  // Compact Card density is a request size only. It must not be written into itemsPerTablePage.
+  const pageSize = computed(() =>
+    searchResultsPageSize({
+      view: itemView.value,
+      compact: compactSearch.value,
+      tablePageSize: preferences.value.itemsPerTablePage,
+    })
+  );
+
+  watch(pageSize, (next, previous) => {
+    if (previous === undefined || next === previous || page.value === 1) {
+      return;
+    }
+    page.value = 1;
+  });
 
   function setItemView(view: ViewType) {
     preferences.value.itemDisplayView = view;
@@ -123,7 +143,15 @@
   const route = useRoute();
   const router = useRouter();
 
+  let compactMedia: MediaQueryList | null = null;
+  function syncCompactSearch() {
+    compactSearch.value = isCompactSearchViewport();
+  }
+
   onMounted(async () => {
+    compactMedia = window.matchMedia(SEARCH_COMPACT_QUERY);
+    compactMedia.addEventListener("change", syncCompactSearch);
+    syncCompactSearch();
     loading.value = true;
     searchLocked.value = true;
     await Promise.all([locationsStore.ensureLocationsFetched(), tagStore.ensureAllTagsFetched()]);
@@ -156,6 +184,10 @@
       left: 0,
       behavior: "smooth",
     });
+  });
+
+  onBeforeUnmount(() => {
+    compactMedia?.removeEventListener("change", syncCompactSearch);
   });
 
   const locationsStore = useLocationStore();
